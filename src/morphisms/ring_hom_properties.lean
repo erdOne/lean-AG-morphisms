@@ -3,7 +3,7 @@ Copyright (c) 2022 Andrew Yang. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Andrew Yang
 -/
-import morphisms.basic
+import morphisms.affine
 import ring_theory.local_properties
 
 /-!
@@ -166,6 +166,15 @@ begin
     exact H U }
 end
 
+lemma affine_locally_mono
+  (P₁ P₂ : ∀ ⦃R S : Type u⦄ [comm_ring R] [comm_ring S] (f : by exactI R →+* S), Prop)
+  (H : ∀ {R S : Type u} [comm_ring R] [comm_ring S], by exactI ∀ (f : R →+* S), P₁ f → P₂ f) :
+  affine_locally P₁ ≤ affine_locally P₂ :=
+begin
+  refine target_affine_locally_mono _,
+  intros X Y f hY hf U,
+  exact H _ (hf _),
+end
 lemma affine_locally_respects_iso (h : ring_hom.respects_iso @P) :
   (affine_locally @P).respects_iso :=
 target_affine_locally_respects_iso (source_affine_locally_respects_iso h)
@@ -553,3 +562,135 @@ begin
 end
 
 end ring_hom.property_is_local
+
+namespace algebraic_geometry
+
+
+include P
+
+def affine_and : affine_target_morphism_property :=
+λ X Y f hY, is_affine X ∧ P (Scheme.Γ.map f.op)
+
+variable {P}
+
+lemma affine_and_target_affine_locally_iff (hP : ring_hom.respects_iso @P)
+  {X Y : Scheme} (f : X ⟶ Y) :
+  target_affine_locally (affine_and @P) f ↔
+    affine f ∧ (∀ U : opens Y.carrier, is_affine_open U → P (f.1.c.app (op U))) :=
+begin
+  delta target_affine_locally Scheme.affine_opens,
+  simp_rw [affine_iff, ← forall_and_distrib, set_coe.forall],
+  apply forall₂_congr,
+  intros U hU,
+  apply and_congr iff.rfl,
+  rw [Γ_map_morphism_restrict, hP.cancel_left_is_iso, hP.cancel_right_is_iso],
+  refl
+end
+
+omit P
+
+variable (P)
+
+lemma target_affine_locally_affine_and_le_affine :
+  target_affine_locally (affine_and @P) ≤ @affine :=
+begin
+  rw affine_eq_affine_property,
+  apply target_affine_locally_mono,
+  exact λ X Y f hY H, H.1
+end
+
+variable {P}
+
+lemma _root_.ring_hom.property_is_local.affine_and_eq (hP : ring_hom.property_is_local @P) :
+  target_affine_locally (affine_and @P) = @affine ⊓ affine_locally @P :=
+begin
+  rw [affine_eq_affine_property, ← target_affine_locally_and],
+  congr' 1,
+  ext X Y f hY,
+  resetI,
+  split,
+  { intro H, refine ⟨H.1, _⟩,
+    rw (hP.affine_open_cover_tfae f).out 0 1,
+    refine ⟨Scheme.open_cover_of_is_iso (𝟙 _), λ i, H.1, λ _, _⟩,
+    rw [Scheme.open_cover_of_is_iso_map, category.id_comp f],
+    exact H.2 },
+  { rintros ⟨h₁ : is_affine X, h₂⟩,
+    rw (hP.affine_open_cover_tfae f).out 0 2 at h₂,
+    have := @h₂ (Scheme.open_cover_of_is_iso (𝟙 _)) (λ _, h₁) punit.star,
+    rw [Scheme.open_cover_of_is_iso_map, category.id_comp f] at this,
+    refine ⟨h₁, this⟩ }
+end
+
+variable (P)
+
+lemma is_local_affine_and
+  (hP : ring_hom.respects_iso @P)
+  (h₃ : ring_hom.localization_preserves @P)
+  (h₄ : ring_hom.of_localization_span @P) : (affine_and @P).is_local :=
+begin
+  constructor,
+  { apply affine_target_morphism_property.respects_iso_mk,
+    { rintros X Y Z e f _ ⟨H₁, H₂⟩,
+      resetI,
+      refine ⟨is_affine_of_iso e.hom, _⟩,
+      rw [op_comp, functor.map_comp],
+      exact hP.1 (Scheme.Γ.map f.op) (Scheme.Γ.map_iso e.op).CommRing_iso_to_ring_equiv H₂ },
+    { rintros X Y Z e f _ ⟨H₁, H₂⟩,
+      resetI,
+      refine ⟨H₁, _⟩,
+      rw [op_comp, functor.map_comp],
+      exact hP.2 (Scheme.Γ.map f.op) (Scheme.Γ.map_iso e.op).CommRing_iso_to_ring_equiv H₂ } },
+  { rintros X Y hY f r ⟨H₁, H₂⟩,
+    resetI,
+    refine ⟨affine_affine_property_is_local.2 f r H₁, _⟩,
+    rw hP.basic_open_iff,
+    apply ring_hom.localization_preserves.away @h₃,
+    all_goals { assumption } },
+  { rintros X Y hY f s hs H,
+    obtain ⟨H₁, H₂⟩ := forall_and_distrib.mp H,
+    resetI,
+    haveI := affine_affine_property_is_local.3 f s hs H₁,
+    refine ⟨_, _⟩,
+    swap,
+    apply h₄ (Scheme.Γ.map f.op) ↑s hs,
+    intro r,
+    specialize H₂ r,
+    rw hP.basic_open_iff_localization at H₂,
+    all_goals { assumption } },
+end
+
+lemma affine_and_stable_under_composition (hP' : ring_hom.stable_under_composition @P) :
+  (target_affine_locally (affine_and @P)).stable_under_composition :=
+begin
+  introv X h₁ h₂ U,
+  obtain ⟨h₃, h₄⟩ := h₂ U,
+  obtain ⟨h₅, h₆⟩ := h₁ ⟨_, h₃⟩,
+  split,
+  { exact h₅ },
+  { rw [morphism_restrict_comp, op_comp, functor.map_comp],
+    apply hP'; assumption }
+end
+
+lemma affine_and_stable_under_base_change
+  (hP : ring_hom.respects_iso @P)
+  (h₁ : ring_hom.localization_preserves @P)
+  (h₂ : ring_hom.of_localization_span @P)
+  (h₃ : _root_.ring_hom.stable_under_base_change @P) :
+  (target_affine_locally (affine_and @P)).stable_under_base_change :=
+begin
+  apply (is_local_affine_and @P hP @h₁ @h₂).stable_under_base_change,
+  rintros X Y S hS hX f g ⟨hY, H⟩,
+  exactI ⟨infer_instance, h₃.Γ_pullback_fst hP _ _ H⟩
+end
+
+lemma affine_and_mono
+  (P₁ P₂ : ∀ ⦃R S : Type u⦄ [comm_ring R] [comm_ring S] (f : by exactI R →+* S), Prop)
+  (H : ∀ {R S : Type u} [comm_ring R] [comm_ring S], by exactI ∀ (f : R →+* S), P₁ f → P₂ f) :
+  target_affine_locally (affine_and P₁) ≤ target_affine_locally (affine_and P₂) :=
+begin
+  apply target_affine_locally_mono,
+  rintros X Y hY f ⟨hX, hf⟩,
+  exact ⟨hX, H _ hf⟩,
+end
+
+end algebraic_geometry

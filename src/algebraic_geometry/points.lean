@@ -1,6 +1,7 @@
 import algebraic_geometry.pullbacks
 import algebraic_geometry.AffineScheme
 import linear_algebra.tensor_product_basis
+import algebraic_geometry.misc
 
 
 open opposite topological_space category_theory category_theory.limits
@@ -19,11 +20,6 @@ variables {R : CommRing.{u}} [local_ring R] (X : Scheme.{u}) (f : Scheme.Spec.ob
 
 lemma CommRing.of_eq (R : CommRing) : CommRing.of R = R :=
 by { cases R, refl }
-
-lemma Γ_Spec.adjunction_unit_app_base_apply  {X : Scheme} (x) :
-  (Γ_Spec.adjunction.unit.app X).1.base x =
-    prime_spectrum.comap (X.to_LocallyRingedSpace.Γ_to_stalk x) (closed_point _) :=
-rfl
 
 lemma is_localization.at_prime.comap_maximal_ideal {R : Type*} (S : Type*) [comm_ring R] [comm_ring S]
   (I : ideal R) [I.is_prime] [algebra R S] [is_localization.at_prime S I] [local_ring S] :
@@ -106,54 +102,6 @@ instance {R S : Type*} [field R] [comm_ring S] [nontrivial S] (f : R →+* S) :
 instance {R : Type*} [comm_ring R] [local_ring R] :
   is_local_ring_hom (local_ring.residue R) :=
 ⟨λ a ha, not_not.mp (ideal.quotient.eq_zero_iff_mem.not.mp (is_unit_iff_ne_zero.mp ha))⟩
-
-lemma structure_sheaf.open_to_localization_localization_to_stalk {R : Type*} [comm_ring R]
-  (U : opens (prime_spectrum.Top R)) (x : U) :
-  structure_sheaf.open_to_localization R U x x.2 ≫ structure_sheaf.localization_to_stalk R x =
-    (Spec.structure_sheaf R).presheaf.germ x :=
-begin
-  rw [← structure_sheaf.germ_comp_stalk_to_fiber_ring_hom, category.assoc,
-    structure_sheaf.stalk_to_fiber_ring_hom_localization_to_stalk, category.comp_id],
-end
-
-lemma specializes_of_eq {α : Type*} [topological_space α] {x y : α} (e : x = y) :
-  x ⤳ y := e ▸ specializes_refl x
-
-@[simp, reassoc, elementwise]
-lemma Top.presheaf.stalk_specializes_comp {C : Type*} [category C] [limits.has_colimits C]
-  {X : Top} (F : X.presheaf C)
-  {x y z : X} (h : x ⤳ y) (h' : y ⤳ z) :
-  F.stalk_specializes h' ≫ F.stalk_specializes h = F.stalk_specializes (h.trans h') :=
-F.stalk_hom_ext $ λ _ _, by simp
-
-@[simp]
-lemma Top.presheaf.stalk_specializes_refl {C : Type*} [category C] [limits.has_colimits C]
-  {X : Top} (F : X.presheaf C) (x : X) :
-  F.stalk_specializes (specializes_refl x) = 𝟙 _ :=
-F.stalk_hom_ext $ λ _ _, by { dsimp, simpa }
-
-lemma Top.presheaf.stalk_hom_ext_of_is_basis {C : Type*} [category C] [limits.has_colimits C] {X : Top}
-  {B : set (opens X)} (hB : opens.is_basis B)
-  (F : X.presheaf C) {x} {Y : C}
-  {f₁ f₂ : F.stalk x ⟶ Y}
-  (ih : ∀ (U ∈ B) (hxU : x ∈ U), F.germ ⟨x, hxU⟩ ≫ f₁ = F.germ ⟨x, hxU⟩ ≫ f₂) : f₁ = f₂ :=
-Top.presheaf.stalk_hom_ext _
-begin
-  intros U hxU,
-  obtain ⟨V, hV, hxV, hVU : V ≤ U⟩ := opens.is_basis_iff_nbhd.mp hB hxU,
-  have := congr_arg (λ f, F.map (hom_of_le hVU).op ≫ f) (ih V hV hxV),
-  convert this using 1; rw [← category.assoc, F.germ_res]; refl
-end
-
-lemma Scheme.stalk_hom_affine_ext {X : Scheme} (x : X.carrier) {Y : CommRing}
-  {f₁ f₂ : X.stalk x ⟶ Y} (ih : ∀ (U : opens X.carrier) (hU : is_affine_open U) (hxU : x ∈ U),
-    X.presheaf.germ ⟨x, hxU⟩ ≫ f₁ = X.presheaf.germ ⟨x, hxU⟩ ≫ f₂) : f₁ = f₂ :=
-Top.presheaf.stalk_hom_ext_of_is_basis (is_basis_affine_open X) _ ih
-
-@[reassoc]
-lemma Spec_Γ_naturality' {R S : CommRing} (f : R ⟶ S) :
-  f ≫ to_Spec_Γ S = to_Spec_Γ R ≫ Scheme.Γ.map (Scheme.Spec.map f.op).op :=
-Spec_Γ_naturality f
 
 open topological_space
 
@@ -343,6 +291,7 @@ instance {X Y : Scheme} (f : X ⟶ Y)
   [H : is_open_immersion f] (U) : is_iso (f.inv_app U) :=
 by { delta Scheme.hom.inv_app, apply_instance }
 
+@[reassoc]
 lemma Spec_map_stalk_closed_point_to_from_stalk (R : CommRing) [local_ring R]
   (f : Scheme.Spec.obj (op R) ⟶ X) :
   Scheme.Spec.map (stalk_closed_point_to R f).op ≫ X.from_Spec_stalk _ = f :=
@@ -407,6 +356,7 @@ begin
     apply Top.presheaf.stalk_hom_ext, intros U hU, simp },
 end
 
+@[reassoc]
 lemma Scheme.stalk_specializes_from_Spec_stalk {X : Scheme} {x y : X.carrier} (h : x ⤳ y) :
   Scheme.Spec.map (X.presheaf.stalk_specializes h).op ≫ X.from_Spec_stalk y =
     X.from_Spec_stalk x :=

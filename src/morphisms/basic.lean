@@ -111,6 +111,17 @@ end
 def target_affine_locally (P : affine_target_morphism_property) : morphism_property Scheme :=
   λ {X Y : Scheme} (f : X ⟶ Y), ∀ (U : Y.affine_opens), @@P (f ∣_ U) U.prop
 
+lemma target_affine_locally_mono {P P' : affine_target_morphism_property}
+  (e : ∀ X Y (f : X ⟶ Y) [is_affine Y], by exactI P f → P' f) :
+  target_affine_locally P ≤ target_affine_locally P' :=
+λ X Y f H U, @e _ _ _ U.2 (H U)
+
+lemma target_affine_locally_and {P P' : affine_target_morphism_property}  :
+  target_affine_locally (λ X Y f _, by exactI P f ∧ P' f) =
+    target_affine_locally P ⊓ target_affine_locally P' :=
+by { ext X Y f, exact forall_and_distrib }
+
+-- move me
 lemma is_affine_open.map_is_iso {X Y : Scheme} {U : opens Y.carrier} (hU : is_affine_open U)
   (f : X ⟶ Y) [is_iso f] : is_affine_open ((opens.map f.1.base).obj U) :=
 begin
