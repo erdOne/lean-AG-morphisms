@@ -1,4 +1,4 @@
-import morphisms.basic
+import morphisms.isomorphism
 import algebraic_geometry.pullback_carrier
 
 open opposite category_theory category_theory.limits topological_space
@@ -26,5 +26,25 @@ begin
     (pullback.diagonal f)).to_equiv.surjective,
 end
 
+-- move me 
+lemma mono_eq_diagonal : 
+  @mono Scheme _ = morphism_property.diagonal (@is_iso Scheme _) :=
+begin
+  ext X Y f,
+  split,
+  { introI _, show is_iso _, apply_instance },
+  { rintro (H : is_iso _),
+    resetI,
+  haveI : is_iso (pullback.fst : pullback f f ⟶ X),
+  { rw (is_iso.inv_eq_of_hom_inv_id (pullback.diagonal_fst f)).symm, apply_instance },
+  exact is_kernel_pair.mono_of_is_iso_fst (is_pullback.of_has_pullback f f) }
+end
+
+lemma mono_is_local_at_target : 
+  property_is_local_at_target (@mono _ _) :=
+begin
+  rw mono_eq_diagonal,
+  exact is_iso_is_local_at_target.diagonal
+end
 
 end algebraic_geometry

@@ -43,6 +43,8 @@ variables {X Y : Scheme.{u}} (f : X ⟶ Y)
 class quasi_separated (f : X ⟶ Y) : Prop :=
 (diagonal_quasi_compact : quasi_compact (pullback.diagonal f))
 
+attribute [instance] quasi_separated.diagonal_quasi_compact
+
 /-- The `affine_target_morphism_property` corresponding to `quasi_separated`, asserting that the
 domain is a quasi-separated scheme. -/
 def quasi_separated.affine_property : affine_target_morphism_property :=

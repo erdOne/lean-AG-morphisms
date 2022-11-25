@@ -37,9 +37,20 @@ variable [is_localized_module S f]
 
 
 @[simp]
-lemma iso_mk' (m : M) (s : S) :
+lemma iso_mk (m : M) (s : S) :
+  is_localized_module.iso S f (localized_module.mk m s) = is_localized_module.mk' f m s :=
+rfl
+
+@[simp]
+lemma iso_symm_mk' (m : M) (s : S) :
   (is_localized_module.iso S f).symm (is_localized_module.mk' f m s) = localized_module.mk m s :=
 (is_localized_module.iso S f).symm_apply_apply (localized_module.mk m s)
+
+@[simp]
+lemma iso_mk' (m : M) (s : S) :
+  is_localized_module.iso S f (is_localized_module.mk' (localized_module.mk_linear_map S M) m s) =
+    is_localized_module.mk' f m s :=
+by rw [← is_localized_module.mk_eq_mk', iso_mk]
 
 local attribute [-simp] iso_symm_apply
 
@@ -48,7 +59,7 @@ lemma lift_mk' (g : M →ₗ[R] M'')
   (h : ∀ (x : S), is_unit ((algebra_map R (module.End R M'')) x)) (m : M) (s : S) :
   (is_localized_module.lift S f g h) (is_localized_module.mk' f m s) = (h s).unit⁻¹ (g m) :=
 by { delta is_localized_module.lift, dsimp,
-  rw [is_localized_module.iso_mk', localized_module.lift_mk], refl }
+  rw [is_localized_module.iso_symm_mk', localized_module.lift_mk], refl }
 
 end is_localized_module
 

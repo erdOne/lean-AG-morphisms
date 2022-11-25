@@ -1,5 +1,4 @@
 import algebraic_geometry.AffineScheme
-import for_mathlib.localized_module
 
 open category_theory category_theory.limits opposite topological_space
 
@@ -135,110 +134,71 @@ begin
     refl }
 end
 
-
-namespace structure_sheaf
-
-noncomputable theory
-
-open Spec
-
-variables {R S : CommRing.{u}} (f : R ⟶ S) (p : prime_spectrum R)
-
-/--
-For an algebra `f : R →+* S`, this is the ring homomorphism `S →+* (f∗ 𝒪ₛ)ₚ` for a `p : Spec R`.
-This is shown to be the localization at `p` in `is_localized_module_to_pushforward_stalk_alg_hom`.
--/
-def to_pushforward_stalk :
-  S ⟶ (Spec.Top_map f _* (structure_sheaf S).1).stalk p :=
-structure_sheaf.to_open S ⊤ ≫
-  @Top.presheaf.germ _ _ _ _ (Spec.Top_map f _* (structure_sheaf S).1) ⊤ ⟨p, trivial⟩
-
-@[reassoc]
-lemma to_pushforward_stalk_comp :
-  f ≫ structure_sheaf.to_pushforward_stalk f p =
-  structure_sheaf.to_stalk R p ≫
-    (Top.presheaf.stalk_functor _ _).map (Spec.SheafedSpace_map f).c :=
+lemma prime_spectrum.Union_basic_open_eq_top_iff {R : Type*} [comm_ring R] {ι : Type*}
+  (f : ι → R) : (⨆ i : ι, prime_spectrum.basic_open (f i)) = ⊤ ↔ ideal.span (set.range f) = ⊤ :=
 begin
-  rw structure_sheaf.to_stalk,
-  erw category.assoc,
-  rw Top.presheaf.stalk_functor_map_germ,
-  exact Spec_Γ_naturality_assoc f _,
+  erw opens.supr_mk (λ i : ι, (prime_spectrum.basic_open (f i)).1),
+  rw [← opens.ext_iff, subtype.coe_mk],
+  simp_rw [subtype.val_eq_coe, prime_spectrum.basic_open_eq_zero_locus_compl],
+  rw [← set.compl_Inter, opens.coe_top],
+  erw compl_eq_top,
+  rw [← prime_spectrum.zero_locus_Union, ← prime_spectrum.zero_locus_span],
+  erw prime_spectrum.zero_locus_empty_iff_eq_top,
+  simp,
 end
 
-instance : algebra R ((Spec.Top_map f _* (structure_sheaf S).1).stalk p) :=
-(f ≫ structure_sheaf.to_pushforward_stalk f p).to_algebra
-
-lemma algebra_map_pushforward_stalk :
-  algebra_map R ((Spec.Top_map f _* (structure_sheaf S).1).stalk p) =
-    f ≫ structure_sheaf.to_pushforward_stalk f p := rfl
-
-variables (R S) [algebra R S]
-
-/--
-This is the `alg_hom` version of `to_pushforward_stalk`, which is the map `S ⟶ (f∗ 𝒪ₛ)ₚ` for some
-algebra `R ⟶ S` and some `p : Spec R`.
--/
-@[simps]
-def to_pushforward_stalk_alg_hom :
-  S →ₐ[R] (Spec.Top_map (algebra_map R S) _* (structure_sheaf S).1).stalk p :=
-{ commutes' := λ _, rfl, ..(structure_sheaf.to_pushforward_stalk (algebra_map R S) p) }
-
-.
-lemma is_localized_module_to_pushforward_stalk_alg_hom_aux (y) :
-  ∃ (x : S × p.as_ideal.prime_compl), x.2 • y = to_pushforward_stalk_alg_hom R S p x.1 :=
+lemma CommRing.is_iso_iff_bijective {R S : CommRing} (f : R ⟶ S) :
+  is_iso f ↔ function.bijective f :=
 begin
-  obtain ⟨U, hp, s, e⟩ := Top.presheaf.germ_exist _ _ y,
-  obtain ⟨_, ⟨r, rfl⟩, hpr, hrU⟩ := prime_spectrum.is_topological_basis_basic_opens
-    .exists_subset_of_mem_open (show p ∈ U.1, from hp) U.2,
-  change prime_spectrum.basic_open r ≤ U at hrU,
-  replace e := ((Spec.Top_map (algebra_map R S) _* (structure_sheaf S).1)
-    .germ_res_apply (hom_of_le hrU) ⟨p, hpr⟩ _).trans e,
-  set s' := (Spec.Top_map (algebra_map R S) _* (structure_sheaf S).1).map (hom_of_le hrU).op s
-    with h,
-  rw ← h at e,
-  clear_value s', clear_dependent U,
-  obtain ⟨⟨s, ⟨_, n, rfl⟩⟩, hsn⟩ := @is_localization.surj _ _ _
-    _ _ _ (structure_sheaf.is_localization.to_basic_open S $ algebra_map R S r) s',
-  refine ⟨⟨s, ⟨r, hpr⟩ ^ n⟩, _⟩,
-  rw [submonoid.smul_def, algebra.smul_def, algebra_map_pushforward_stalk, to_pushforward_stalk,
-    comp_apply, comp_apply],
-  iterate 2 { erw ← (Spec.Top_map (algebra_map R S) _* (structure_sheaf S).1).germ_res_apply
-    (hom_of_le le_top) ⟨p, hpr⟩ },
-  rw [← e, ← map_mul, mul_comm],
-  dsimp only [subtype.coe_mk] at hsn,
-  rw ← map_pow (algebra_map R S) at hsn,
-  congr' 1
+  rw ← is_iso_iff_bijective,
+  change is_iso f ↔ is_iso ((forget CommRing).map f),
+  refine ⟨λ H, by exactI infer_instance, λ H, by exactI is_iso_of_reflects_iso f (forget CommRing)⟩,
 end
 
-instance is_localized_module_to_pushforward_stalk_alg_hom :
-  is_localized_module p.as_ideal.prime_compl (to_pushforward_stalk_alg_hom R S p).to_linear_map :=
+lemma bijective_of_is_localization {R S T : Type*} [comm_ring R] [comm_ring S] [comm_ring T]
+  [algebra R S] [algebra R T] (M : submonoid R) [is_localization M S] [is_localization M T]
+  (f : S →+* T) (hf : f.comp (algebra_map R S) = algebra_map R T) : function.bijective f :=
 begin
-  apply is_localized_module.mk_of_algebra,
-  { intros x hx, rw [algebra_map_pushforward_stalk, to_pushforward_stalk_comp, comp_apply],
-    exact (is_localization.map_units ((structure_sheaf R).presheaf.stalk p) ⟨x, hx⟩).map _ },
-  { apply is_localized_module_to_pushforward_stalk_alg_hom_aux },
-  { intros x hx,
-    rw [to_pushforward_stalk_alg_hom_apply, ring_hom.to_fun_eq_coe,
-      ← (to_pushforward_stalk (algebra_map R S) p).map_zero, to_pushforward_stalk, comp_apply,
-      comp_apply, map_zero] at hx,
-    obtain ⟨U, hpU, i₁, i₂, e⟩ := Top.presheaf.germ_eq _ _ _ _ _ _ hx,
-    obtain ⟨_, ⟨r, rfl⟩, hpr, hrU⟩ := prime_spectrum.is_topological_basis_basic_opens
-      .exists_subset_of_mem_open (show p ∈ U.1, from hpU) U.2,
-    change prime_spectrum.basic_open r ≤ U at hrU,
-    apply_fun (Spec.Top_map (algebra_map R S) _* (structure_sheaf S).1).map (hom_of_le hrU).op at e,
-    simp only [Top.presheaf.pushforward_obj_map, functor.op_map, map_zero, ← comp_apply,
-      to_open_res] at e,
-    have : to_open S (prime_spectrum.basic_open $ algebra_map R S r) x = 0,
-    { refine eq.trans _ e, refl },
-    have := (@is_localization.mk'_one _ _ _
-      _ _ _ (structure_sheaf.is_localization.to_basic_open S $ algebra_map R S r) x).trans this,
-    obtain ⟨⟨_, n, rfl⟩, e⟩ := (is_localization.mk'_eq_zero_iff _ _).mp this,
-    refine ⟨⟨r, hpr⟩ ^ n, _⟩,
-    rw [submonoid.smul_def, algebra.smul_def, submonoid.coe_pow, subtype.coe_mk, mul_comm, map_pow],
-    exact e },
+  have : f = is_localization.alg_equiv M S T,
+  { apply is_localization.ring_hom_ext M, { rw hf, ext, simp }, { apply_instance } },
+  rw this,
+  exact (is_localization.alg_equiv M S T).to_equiv.bijective,
 end
 
-end structure_sheaf
+lemma Γ_Spec.adjunction.unit_app_map_basic_open {X : Scheme} (r : X.presheaf.obj (op ⊤)) :
+  (opens.map (Γ_Spec.adjunction.unit.app X).1.base).obj (prime_spectrum.basic_open r) =
+    X.basic_open r :=
+begin
+  rw ← basic_open_eq_of_affine,
+  erw Scheme.preimage_basic_open,
+  change X.basic_open _ = _,
+  congr,
+  rw [Γ_Spec.adjunction_unit_app_app_top, ← comp_apply],
+  simp [-comp_apply]
+end
 
+lemma preimage_adjunction_unit_basic_open (X : Scheme) (r : X.presheaf.obj (op ⊤)) :
+  (opens.map (Γ_Spec.adjunction.unit.app X).1.base).obj (prime_spectrum.basic_open r) =
+    X.basic_open r :=
+begin
+  rw ← basic_open_eq_of_affine,
+  erw Scheme.preimage_basic_open,
+  congr',
+  rw [Γ_Spec.adjunction_unit_app_app_top, ← comp_apply],
+  simp [-comp_apply]
+end
+
+lemma supr_basic_open_eq_top_of_span_eq_top (X : Scheme) (s : set (X.presheaf.obj $ op ⊤))
+  (h : ideal.span s = ⊤) : (⨆ i : s, X.basic_open i.1) = ⊤ :=
+begin
+  have := prime_spectrum.Union_basic_open_eq_top_iff (coe : s → X.presheaf.obj (op ⊤)),
+  rw subtype.range_coe at this,
+  rw ← this at h,
+  apply_fun (opens.map (Γ_Spec.adjunction.unit.app X).1.base).obj at h,
+  rw opens.map_supr at h,
+  convert h,
+  ext1 i,
+  exact (preimage_adjunction_unit_basic_open X _).symm
+end
 
 end algebraic_geometry

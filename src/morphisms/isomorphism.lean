@@ -83,6 +83,8 @@ begin
   exact @@functor.map_is_iso _ _ AffineScheme.forget_to_Scheme _ (@@is_iso_of_op _ _ this)
 end
 
+section move_me
+
 lemma property_is_local_at_target.target_affine_locally_eq {P}
   (hP : property_is_local_at_target P) :
   target_affine_locally (λ X Y f _, P f) = P :=
@@ -94,6 +96,28 @@ begin
       (Y.affine_cover.map x)⟩, Y.affine_cover.covers x⟩ },
   { intros H U, apply ((hP.open_cover_tfae f).out 0 3).mp H }
 end
+
+lemma property_is_local_at_target.affine_is_local {P : morphism_property Scheme}
+  (hP : property_is_local_at_target P) :
+  affine_target_morphism_property.is_local (λ X Y f _, P f) :=
+begin
+  apply affine_target_morphism_property.is_local_of_open_cover_imply,
+  apply affine_target_morphism_property.respects_iso_mk,
+  { intros _ _ _ _ _ _, exact hP.1.1 _ _ },
+  { intros _ _ _ _ _ _, exact hP.1.2 _ _ },
+  { rintros X Y f ⟨𝒰, _, h𝒰⟩ U g hU _,
+    exactI ((hP.open_cover_tfae f).out 1 4).mp ⟨𝒰, h𝒰⟩ g }
+end
+
+lemma property_is_local_at_target.diagonal {P : morphism_property Scheme}
+  (hP : property_is_local_at_target P) : property_is_local_at_target P.diagonal :=
+begin
+  have := hP.affine_is_local.diagonal.target_affine_locally_is_local,
+  rwa [← diagonal_target_affine_locally_eq_target_affine_locally _ hP.affine_is_local,
+    hP.target_affine_locally_eq] at this
+end
+
+end move_me
 
 lemma target_affine_locally_affine_and_is_iso :
   target_affine_locally (λ X Y f hY, is_affine X ∧ is_iso (Scheme.Γ.map f.op)) = @is_iso Scheme _ :=

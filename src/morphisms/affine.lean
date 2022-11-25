@@ -43,6 +43,10 @@ by { delta affine_target_morphism_property.to_property affine.affine_property, s
 instance affine_of_is_iso {X Y : Scheme} (f : X ⟶ Y) [is_iso f] : affine f :=
 ⟨λ U hU, hU.map_is_iso f⟩
 
+@[priority 100]
+instance affine.to_quasi_compact [affine f] : quasi_compact f :=
+(quasi_compact_iff_forall_affine f).mpr (λ U hU, (affine.is_affine_preimage U hU).is_compact)
+
 instance affine_comp {X Y Z : Scheme} (f : X ⟶ Y) (g : Y ⟶ Z)
   [affine f] [affine g] : affine (f ≫ g) :=
 begin
@@ -83,78 +87,6 @@ end
 def affine_preimage {X Y : Scheme} (f : X ⟶ Y) [affine f] (U : Y.affine_opens) :
   X.affine_opens :=
 ⟨(opens.map f.1.base).obj (U : opens Y.carrier), affine.is_affine_preimage _ U.prop⟩
-
-lemma prime_spectrum.Union_basic_open_eq_top_iff {R : Type*} [comm_ring R] {ι : Type*}
-  (f : ι → R) : (⨆ i : ι, prime_spectrum.basic_open (f i)) = ⊤ ↔ ideal.span (set.range f) = ⊤ :=
-begin
-  erw opens.supr_mk (λ i : ι, (prime_spectrum.basic_open (f i)).1),
-  rw [← opens.ext_iff, subtype.coe_mk],
-  simp_rw [subtype.val_eq_coe, prime_spectrum.basic_open_eq_zero_locus_compl],
-  rw [← set.compl_Inter, opens.coe_top],
-  erw compl_eq_top,
-  rw [← prime_spectrum.zero_locus_Union, ← prime_spectrum.zero_locus_span],
-  erw prime_spectrum.zero_locus_empty_iff_eq_top,
-  simp,
-end
-
-lemma CommRing.is_iso_iff_bijective {R S : CommRing} (f : R ⟶ S) :
-  is_iso f ↔ function.bijective f :=
-begin
-  rw ← is_iso_iff_bijective,
-  change is_iso f ↔ is_iso ((forget CommRing).map f),
-  refine ⟨λ H, by exactI infer_instance, λ H, by exactI is_iso_of_reflects_iso f (forget CommRing)⟩,
-end
-
-lemma bijective_of_is_localization {R S T : Type*} [comm_ring R] [comm_ring S] [comm_ring T]
-  [algebra R S] [algebra R T] (M : submonoid R) [is_localization M S] [is_localization M T]
-  (f : S →+* T) (hf : f.comp (algebra_map R S) = algebra_map R T) : function.bijective f :=
-begin
-  have : f = is_localization.alg_equiv M S T,
-  { apply is_localization.ring_hom_ext M, { rw hf, ext, simp }, { apply_instance } },
-  rw this,
-  exact (is_localization.alg_equiv M S T).to_equiv.bijective,
-end
-
-lemma Γ_Spec.adjunction.unit_app_map_basic_open {X : Scheme} (r : X.presheaf.obj (op ⊤)) :
-  (opens.map (Γ_Spec.adjunction.unit.app X).1.base).obj (prime_spectrum.basic_open r) =
-    X.basic_open r :=
-begin
-  rw ← basic_open_eq_of_affine,
-  erw Scheme.preimage_basic_open,
-  change X.basic_open _ = _,
-  congr,
-  rw [Γ_Spec.adjunction_unit_app_app_top, ← comp_apply],
-  simp [-comp_apply]
-end
-
-lemma preimage_adjunction_unit_basic_open (X : Scheme) (r : X.presheaf.obj (op ⊤)) :
-  (opens.map (Γ_Spec.adjunction.unit.app X).1.base).obj (prime_spectrum.basic_open r) =
-    X.basic_open r :=
-begin
-  rw ← basic_open_eq_of_affine,
-  erw Scheme.preimage_basic_open,
-  congr',
-  rw [Γ_Spec.adjunction_unit_app_app_top, ← comp_apply],
-  simp [-comp_apply]
-end
-
-lemma supr_basic_open_eq_top_of_span_eq_top (X : Scheme) (s : set (X.presheaf.obj $ op ⊤))
-  (h : ideal.span s = ⊤) : (⨆ i : s, X.basic_open i.1) = ⊤ :=
-begin
-  have := prime_spectrum.Union_basic_open_eq_top_iff (coe : s → X.presheaf.obj (op ⊤)),
-  rw subtype.range_coe at this,
-  rw ← this at h,
-  apply_fun (opens.map (Γ_Spec.adjunction.unit.app X).1.base).obj at h,
-  rw opens.map_supr at h,
-  convert h,
-  ext1 i,
-  exact (preimage_adjunction_unit_basic_open X _).symm
-end
-
-
--- @[simp] lemma opens.coe_supr {α : Type*} [topological_space α] {ι} (s : ι → opens α) :
---   ((⨆ i, s i : opens α) : set α) = ⋃ i, s i :=
--- by { rw opens.supr_def, refl }
 
 lemma is_affine_of_span_top_of_is_affine_open (X : Scheme) (s : set (X.presheaf.obj $ op ⊤))
   (h₁ : ideal.span s = ⊤) (h₂ : ∀ r : s, is_affine_open (X.basic_open r.1)) : is_affine X :=
@@ -256,6 +188,24 @@ begin
   introv X H,
   delta affine.affine_property at H ⊢,
   resetI,
+  apply_instance
+end
+
+lemma affine_over_affine_iff {X Y : Scheme} (f : X ⟶ Y) [is_affine Y] :
+  affine f ↔ is_affine X :=
+affine_eq_affine_property.symm ▸
+  affine_affine_property_is_local.affine_target_iff f
+
+@[priority 100]
+instance affine_of_is_affine [is_affine X] [is_affine Y] : affine f :=
+begin
+  rw affine_over_affine_iff,
+  apply_instance
+end
+
+lemma is_affine_of_affine [affine f] [is_affine Y] : is_affine X :=
+begin
+  rw ← affine_over_affine_iff f,
   apply_instance
 end
 
