@@ -1,6 +1,8 @@
 import morphisms.universally_closed
 import ring_theory.valuation.valuation_ring
 import for_mathlib.valuation_subring
+import morphisms.separated
+import algebraic_geometry.properties
 
 noncomputable theory
 
@@ -180,6 +182,106 @@ lemma universally_closed_eq_valuative_criterion :
 by rw [valuative_criterion.existence_eq,
   universally_closed_eq_quasi_compact_and_universally_specializing]
 
+lemma universally_closed_of_valuative_criterion [quasi_compact f]
+  (hf : valuative_criterion.existence f) : universally_closed f :=
+begin
+  rw universally_closed_eq_valuative_criterion,
+  exact ⟨infer_instance, hf⟩
+end
+
+
 end existence
+
+section uniqueness
+
+lemma separated_of_valuative_criterion [quasi_separated f]
+  (hf : valuative_criterion.uniqueness f) : separated f :=
+begin
+  suffices : universally_closed (pullback.diagonal f),
+  { constructor,
+    apply is_closed_immersion.of_is_immersion,
+    exactI (universally_closed.is_closed_map $ pullback.diagonal f).closed_range },
+  apply universally_closed_of_valuative_criterion,
+  rintro ⟨R, K, i₁, i₂, c⟩,
+  resetI,
+  have c' : comm_sq i₁ (Scheme.Spec.map (CommRing.of_hom (algebra_map R K)).op) f
+    (i₂ ≫ pullback.fst ≫ f),
+  { constructor, rw [← c.w_assoc, pullback.diagonal_fst_assoc] },
+  have : i₂ ≫ pullback.fst = i₂ ≫ pullback.snd,
+  { injection @@subsingleton.elim (hf ⟨R, K, i₁, i₂ ≫ pullback.fst ≫ f, c'⟩)
+      ⟨i₂ ≫ pullback.fst, _, category.assoc _ _ _⟩ ⟨i₂ ≫ pullback.snd, _, _⟩; dsimp only,
+    { rw [← c.w_assoc, pullback.diagonal_fst, category.comp_id] },
+    { rw [← c.w_assoc, pullback.diagonal_snd, category.comp_id] },
+    { rw [category.assoc, pullback.condition] } },
+  refine ⟨⟨⟨i₂ ≫ pullback.fst, _, _⟩⟩⟩; dsimp only,
+  { rw [← c.w_assoc, pullback.diagonal_fst, category.comp_id] },
+  { apply pullback.hom_ext; simp only [category.assoc, pullback.diagonal_fst, pullback.diagonal_snd,
+      category.comp_id, this] }
+end
+.
+
+--move me
+def Spec_Γ_arrow_iso_of_is_affine [is_affine X] [is_affine Y] :
+  arrow.mk f ≅ arrow.mk (Scheme.Spec.map (Scheme.Γ.map f.op).op) :=
+arrow.iso_mk' _ _ (as_iso $ Γ_Spec.adjunction.unit.app _) (as_iso $ Γ_Spec.adjunction.unit.app _)
+  (Γ_Spec.adjunction.unit_naturality f)
+
+--move me
+def Γ_Spec_arrow_iso {R S : CommRing} (f : R ⟶ S) :
+  arrow.mk f ≅ arrow.mk (Scheme.Γ.map (Scheme.Spec.map f.op).op) :=
+(arrow.iso_of_nat_iso Spec_Γ_identity (arrow.mk f)).symm
+
+lemma separated.valuative_criterion [separated f] :
+  valuative_criterion.uniqueness f :=
+begin
+  rintro ⟨R, K, i₁, i₂, c⟩,
+  constructor,
+  rintro ⟨l₁, hl₁, hl₁'⟩ ⟨l₂, hl₂, hl₂'⟩,
+  ext1,
+  dsimp only at *,
+  let h := hl₁'.trans hl₂'.symm,
+  have := is_closed_immersion_stable_under_base_change
+    (pullback_fst_map_snd_is_pullback f f (pullback.diagonal f)
+    (pullback.lift l₁ l₂ h)) infer_instance,
+  haveI : is_iso (pullback.diagonal f ≫ pullback.snd),
+  { rw [pullback.diagonal_snd], apply_instance },
+  rw ← is_closed_immersion_respects_iso.cancel_right_is_iso _ pullback.snd at this,
+  swap, { apply_instance },
+  rw [pullback.lift_snd, category.comp_id] at this,
+  let Z := pullback (pullback.diagonal f) (pullback.lift l₁ l₂ h),
+  let g : Z ⟶ _ := pullback.snd,
+  change is_closed_immersion g at this,
+  resetI,
+  haveI : is_affine Z := is_affine_of_affine g,
+  have hg₂ := ((is_closed_immersion_over_affine_iff g).mp this).2,
+  suffices : is_iso g,
+  { resetI, 
+    refine (pullback.lift_fst l₁ l₂ h).symm.trans (eq.trans _ (pullback.lift_snd l₁ l₂ h)),
+    rw [← cancel_epi g, ← pullback.condition_assoc, ← pullback.condition_assoc,
+      pullback.diagonal_fst, pullback.diagonal_snd] },
+  let l : Scheme.Spec.obj (op $ CommRing.of K) ⟶ Z :=
+    pullback.lift i₁ (Scheme.Spec.map (CommRing.of_hom (algebra_map R K)).op) _,
+  swap,
+  { apply pullback.hom_ext; simp only [pullback.diagonal_fst, pullback.diagonal_snd,
+      category.assoc, category.comp_id, pullback.lift_fst, pullback.lift_snd, hl₁, hl₂] },
+  have hg : l ≫ g = Scheme.Spec.map (CommRing.of_hom (algebra_map R K)).op := pullback.lift_snd _ _ _,
+  have hg₁ := ((morphism_property.injective_respects_iso _).arrow_mk_iso_iff
+    (Γ_Spec_arrow_iso $ CommRing.of_hom $ algebra_map R K)).mp (is_fraction_ring.injective R K : _),
+  rw [← hg, op_comp, functor.map_comp] at hg₁,
+  rw is_iso_respects_iso.arrow_mk_iso_iff (Spec_Γ_arrow_iso_of_is_affine g),
+  convert_to is_iso
+    (Scheme.Spec.map (ring_equiv.of_bijective _ ⟨hg₁.of_comp, hg₂⟩).to_CommRing_iso.hom.op),
+  apply_instance
+end
+
+lemma separated_eq_valuative_criterion :
+  @separated = @quasi_separated ⊓ valuative_criterion.uniqueness :=
+begin
+  ext X Y f, split,
+  { introI H, exact ⟨infer_instance, separated.valuative_criterion f⟩ },
+  { rintro ⟨h₁, h₂⟩, exactI separated_of_valuative_criterion f h₂ }
+end
+
+end uniqueness
 
 end algebraic_geometry
