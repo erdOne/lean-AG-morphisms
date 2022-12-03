@@ -447,6 +447,8 @@ end
 
 end affine_target_morphism_property
 
+section diagonal
+
 /--
 The `affine_target_morphism_property` associated to `(target_affine_locally P).diagonal`.
 See `diagonal_target_affine_locally_eq_target_affine_locally`.
@@ -570,6 +572,40 @@ begin
   exact ((hP.diagonal_affine_open_cover_tfae f).out 0 1).trans
     ((hP.diagonal.affine_open_cover_tfae f).out 1 0),
 end
+
+lemma property_is_local_at_target.target_affine_locally_eq {P}
+  (hP : property_is_local_at_target P) :
+  target_affine_locally (λ X Y f _, P f) = P :=
+begin
+  ext X Y f,
+  split,
+  { refine λ H, ((hP.open_cover_tfae f).out 5 0).mp ⟨Y.affine_opens, subtype.val, _, λ U, H _⟩,
+    rw eq_top_iff, rintro x -, exact opens.mem_supr.mpr ⟨⟨_, range_is_affine_open_of_open_immersion
+      (Y.affine_cover.map x)⟩, Y.affine_cover.covers x⟩ },
+  { intros H U, apply ((hP.open_cover_tfae f).out 0 3).mp H }
+end
+
+lemma property_is_local_at_target.affine_is_local {P : morphism_property Scheme}
+  (hP : property_is_local_at_target P) :
+  affine_target_morphism_property.is_local (λ X Y f _, P f) :=
+begin
+  apply affine_target_morphism_property.is_local_of_open_cover_imply,
+  apply affine_target_morphism_property.respects_iso_mk,
+  { intros _ _ _ _ _ _, exact hP.1.1 _ _ },
+  { intros _ _ _ _ _ _, exact hP.1.2 _ _ },
+  { rintros X Y f ⟨𝒰, _, h𝒰⟩ U g hU _,
+    exactI ((hP.open_cover_tfae f).out 1 4).mp ⟨𝒰, h𝒰⟩ g }
+end
+
+lemma property_is_local_at_target.diagonal {P : morphism_property Scheme}
+  (hP : property_is_local_at_target P) : property_is_local_at_target P.diagonal :=
+begin
+  have := hP.affine_is_local.diagonal.target_affine_locally_is_local,
+  rwa [← diagonal_target_affine_locally_eq_target_affine_locally _ hP.affine_is_local,
+    hP.target_affine_locally_eq] at this
+end
+
+end diagonal
 
 lemma universally_is_local_at_target (P : morphism_property Scheme)
   (hP : ∀ {X Y : Scheme.{u}} (f : X ⟶ Y) (𝒰 : Scheme.open_cover.{u} Y),

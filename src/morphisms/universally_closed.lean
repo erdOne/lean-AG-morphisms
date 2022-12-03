@@ -5,6 +5,7 @@ Authors: Andrew Yang
 -/
 import morphisms.basic
 import algebraic_geometry.fiber
+import algebraic_geometry.prime_spectrum_more
 import morphisms.quasi_compact
 import for_mathlib.topology
 import for_mathlib.specializing
@@ -229,25 +230,6 @@ CommRing.of $ (X.local_affine i).some_spec.some
 -- move me
 lemma Scheme.affine_cover_obj (X : Scheme) (i : X.affine_cover.J) :
   X.affine_cover.obj i = Scheme.Spec.obj (op $ X.affine_cover_ring i) := rfl
-
-lemma prime_spectrum.image_is_closed_iff_is_stable_under_specialization
-  {R S : Type*} [comm_ring R] [comm_ring S] (f : R →+* S) : 
-  is_closed (set.range $ prime_spectrum.comap f) ↔
-    stable_under_specialization (set.range $ prime_spectrum.comap f) :=
-begin
-  refine ⟨is_closed.stable_under_specialization, λ h, _⟩,
-  rw prime_spectrum.is_closed_iff_zero_locus_ideal,
-  refine ⟨f.ker, _⟩,
-  apply le_antisymm,
-  { rintro _ ⟨p, rfl⟩ x (hx : f x = 0), show f x ∈ p.1, rw hx, exact zero_mem _ },
-  rintros p (hp : f.ker ≤ p.as_ideal),
-  obtain ⟨q, hq₁, hq₂⟩ := ideal.exists_minimal_primes_le hp,
-  obtain ⟨p', hp', hp'', rfl⟩ := ideal.exists_comap_eq_of_mem_minimal_primes f _ hq₁,
-  let p'' : prime_spectrum S := ⟨p', hp'⟩,
-  change prime_spectrum.comap f p'' ≤ p at hq₂,
-  apply h ((prime_spectrum.le_iff_specializes _ _).mp hq₂),
-  exact set.mem_range_self _  
-end
 
 lemma image_is_closed_iff_is_stable_under_specialization_of_affine
   [compact_space X.carrier] {R : CommRing}

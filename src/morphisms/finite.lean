@@ -63,36 +63,47 @@ by { rw finite_eq_affine_property, exact affine_and_stable_under_base_change _
   ring_hom.finite_respects_iso localization_finite finite_of_localization_span
   ring_hom.finite_stable_under_base_change }
 
---move me
-def Spec_Γ_arrow_iso_of_is_affine [is_affine X] [is_affine Y] :
-  arrow.mk f ≅ arrow.mk (Scheme.Spec.map (Scheme.Γ.map f.op).op) :=
-arrow.iso_mk' _ _ (as_iso $ Γ_Spec.adjunction.unit.app _) (as_iso $ Γ_Spec.adjunction.unit.app _)
-  (Γ_Spec.adjunction.unit_naturality f)
+lemma finite_le_affine : @finite ≤ @affine :=
+by { rw finite_eq_affine_property, exact target_affine_locally_affine_and_le_affine _ }
 
---move me
-def Γ_Spec_arrow_iso {R S : CommRing} (f : R ⟶ S) :
-  arrow.mk f ≅ arrow.mk (Scheme.Γ.map (Scheme.Spec.map f.op).op) :=
-(arrow.iso_of_nat_iso Spec_Γ_identity (arrow.mk f)).symm
+-- move me
+lemma _root_.category_theory.morphism_property.respects_iso.inf {C} [category C]
+  {P₁ P₂ : morphism_property C} (h₁ : P₁.respects_iso) (h₂ : P₂.respects_iso) :
+    (P₁ ⊓ P₂).respects_iso :=
+⟨λ _ _ _ _ _ ⟨H₁, H₂⟩, ⟨h₁.1 _ _ H₁, h₂.1 _ _ H₂⟩,
+    λ _ _ _ _ _ ⟨H₁, H₂⟩, ⟨h₁.2 _ _ H₁, h₂.2 _ _ H₂⟩⟩
+
+-- move me
+lemma property_is_local_at_target.inf {P₁ P₂} (h₁ : property_is_local_at_target P₁)
+  (h₂ : property_is_local_at_target P₂) : property_is_local_at_target (P₁ ⊓ P₂) :=
+⟨h₁.1.inf h₂.1, λ X Y f U H, ⟨h₁.2 _ _ H.1, h₂.2 _ _ H.2⟩, λ X Y f 𝒰 H,
+  ⟨h₁.3 _ 𝒰 $ λ i, (H i).1, h₂.3 _ 𝒰 $ λ i, (H i).2⟩⟩
+
+lemma finite_Spec_iff {R S : CommRing} (f : R ⟶ S) :
+  finite (Scheme.Spec.map f.op) ↔ ring_hom.finite f :=
+begin
+  rw [finite_eq_affine_property,
+    finite.affine_property_is_local.affine_target_iff,
+    finite.affine_property, affine_and_Spec_iff ring_hom.finite_respects_iso]
+end
 
 lemma is_closed_immersion_eq_finite_inf_mono :
   @is_closed_immersion = @finite ⊓ @mono Scheme _ :=
 begin
-  rw [is_closed_immersion_eq_affine_property, finite_eq_affine_property,
-    ← mono_is_local_at_target.target_affine_locally_eq, ← target_affine_locally_and],
-  congr' 1,
-  ext X Y f,
-  resetI,
+  apply property_ext_of_le_affine is_closed_immersion_le_affine
+    (inf_le_left.trans finite_le_affine) is_closed_immersion.is_local_at_target
+    (finite_is_local_at_target.inf mono_is_local_at_target),
+  intros R S f,
+  simp_rw [is_closed_immersion_Spec_iff, pi.inf_apply, finite_Spec_iff],
   split,
+  { rintro H,
+    haveI := (is_closed_immersion_Spec_iff _).mpr H,
+    exact ⟨ring_hom.finite.of_surjective _ H, infer_instance⟩ },
   { rintro ⟨h₁, h₂⟩,
-    haveI := (is_closed_immersion_over_affine_iff f).mpr ⟨h₁, h₂⟩,
-    refine ⟨⟨h₁, ring_hom.finite.of_surjective _ h₂⟩, infer_instance⟩ },
-  { rintro ⟨⟨h₁, h₂⟩, h₃⟩,
+    rw functor.mono_map_iff_mono at h₂,
     resetI,
-    rw mono_is_local_at_target.respects_iso.arrow_mk_iso_iff
-      (Spec_Γ_arrow_iso_of_is_affine f) at h₃,
-    refine ⟨h₁, ring_hom.surjective_of_epi_of_finite _ _ h₂⟩,
-    convert @@category_theory.unop_epi_of_mono _ (Scheme.Γ.map f.op).op
-      (Scheme.Spec.mono_of_mono_map h₃); exact CommRing.of_eq _ }
+    refine ring_hom.surjective_of_epi_of_finite _ _ h₁,
+    convert @@category_theory.unop_epi_of_mono _ f.op h₂; exact CommRing.of_eq _ }
 end
 
 @[priority 100]

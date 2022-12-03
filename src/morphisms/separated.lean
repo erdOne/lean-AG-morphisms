@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Andrew Yang
 -/
 import morphisms.immersion
+import morphisms.radicial
 import for_mathlib.pullback_lift_comp
 
 /-!
@@ -54,11 +55,14 @@ begin
 end
 
 @[priority 100]
-instance separated_of_mono [mono f] : separated f :=
-⟨infer_instance⟩
+instance separated.to_quasi_separated [separated f] : quasi_separated f := ⟨infer_instance⟩
+
+lemma separated_of_injective (hf : function.injective f.1.base) : separated f :=
+⟨pullback.diagonal_is_closed_immersion_of_injective f hf⟩
 
 @[priority 100]
-instance separated.to_quasi_separated [separated f] : quasi_separated f := ⟨infer_instance⟩
+instance separated_of_radicial [radicial f] : separated f :=
+separated_of_injective f (radicial.base_injective f)
 
 lemma separated_stable_under_composition :
   morphism_property.stable_under_composition @separated :=
@@ -155,6 +159,17 @@ begin
   apply_instance
 end
 
+def separated.affine_property : affine_target_morphism_property :=
+λ X Y f _, is_separated X
+
+lemma separated_eq_affine_property : @separated = target_affine_locally separated.affine_property :=
+begin
+  rw ← separated.is_local_at_target.target_affine_locally_eq,
+  congr' 1,
+  ext X Y f hY,
+  exactI separated_over_is_separated_iff f
+end
+
 -- lemma separated.affine_open_cover_iff {X Y : Scheme.{u}} (𝒰 : Scheme.open_cover.{u} Y)
 --   [∀ i, is_affine (𝒰.obj i)] (f : X ⟶ Y) :
 --   separated f ↔ ∀ i, is_separated (pullback f (𝒰.map i)) :=
@@ -240,21 +255,28 @@ begin
 end
 
 lemma quasi_compact_of_comp [quasi_compact (f ≫ g)] [quasi_separated g] : quasi_compact f :=
+by { rw [← pullback.lift_comp_snd f g], apply_instance }
+
+lemma quasi_compact_of_comp_surjective [quasi_compact (f ≫ g)] [surjective f] : quasi_compact g :=
 begin
-  rw ← pullback.lift_comp_snd f g,
-  apply_instance
+  constructor,
+  intros U hU hU',
+  convert is_compact.image (quasi_compact.is_compact_preimage (f ≫ g) U hU hU') f.1.base.2 using 1,
+  rw [Scheme.comp_val_base, coe_comp, @set.preimage_comp _ _ _ f.1.base,
+      continuous_map.to_fun_eq_coe, set.image_preimage_eq _ (surjective.out f)]
 end
 
 lemma is_immersion_of_comp [is_immersion (f ≫ g)] : is_immersion f :=
-begin
-  rw ← pullback.lift_comp_snd f g,
-  apply_instance
-end
+by { rw [← pullback.lift_comp_snd f g], apply_instance }
 
-lemma is_closed_immersion_of_comp [is_immersion (f ≫ g)] [separated f] : is_immersion f :=
-begin
-  rw ← pullback.lift_comp_snd f g,
-  apply_instance
-end
+lemma is_closed_immersion_of_comp [is_closed_immersion (f ≫ g)] [separated g] :
+  is_closed_immersion f :=
+by { rw [← pullback.lift_comp_snd f g], apply_instance }
+
+lemma finite_of_comp [finite (f ≫ g)] [separated g] : finite f := 
+by { rw [← pullback.lift_comp_snd f g], apply_instance }
+
+lemma integral_of_comp [integral (f ≫ g)] [separated g] : integral f := 
+by { rw [← pullback.lift_comp_snd f g], apply_instance }
 
 end algebraic_geometry

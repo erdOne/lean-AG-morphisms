@@ -201,4 +201,15 @@ begin
   exact (preimage_adjunction_unit_basic_open X _).symm
 end
 
+noncomputable
+def Spec_Γ_arrow_iso_of_is_affine {X Y : Scheme} (f : X ⟶ Y) [is_affine X] [is_affine Y] :
+  arrow.mk f ≅ arrow.mk (Scheme.Spec.map (Scheme.Γ.map f.op).op) :=
+arrow.iso_mk' _ _ (as_iso $ Γ_Spec.adjunction.unit.app _) (as_iso $ Γ_Spec.adjunction.unit.app _)
+  (Γ_Spec.adjunction.unit_naturality f)
+
+noncomputable
+def Γ_Spec_arrow_iso {R S : CommRing} (f : R ⟶ S) :
+  arrow.mk f ≅ arrow.mk (Scheme.Γ.map (Scheme.Spec.map f.op).op) :=
+(arrow.iso_of_nat_iso Spec_Γ_identity (arrow.mk f)).symm
+
 end algebraic_geometry

@@ -7,6 +7,7 @@ Authors: Andrew Yang
 import morphisms.open_immersion
 import morphisms.closed_immersion
 import for_mathlib.locally_closed
+import morphisms.integral
 import algebraic_geometry.pullback_carrier
 
 /-!
@@ -148,8 +149,13 @@ begin
   { rintro ⟨_, _, _, _, _, rfl⟩, by exactI infer_instance }
 end
 
-instance [is_immersion f] : mono f :=
+instance is_immersion.to_mono [is_immersion f] : mono f :=
 by { rw ← is_immersion.factors f, apply mono_comp }
+
+instance is_immersion.to_locally_of_finite_type [is_immersion f] : locally_of_finite_type f :=
+by { rw ← is_immersion.factors f, apply_instance }
+
+
 
 lemma is_immersion_stable_under_composition : 
   morphism_property.stable_under_composition @is_immersion :=
@@ -290,62 +296,191 @@ begin
   exact λ x, ⟨x ⊗ₜ 1, (algebra.tensor_product.lmul'_apply_tmul _ _).trans (mul_one _)⟩,
 end
 
+-- -- move me
+-- abbreviation Scheme.hom.lift_open (U : opens Y.carrier) (hU : set.range f.1.base ⊆ U.1) :
+--   X ⟶ Y.restrict U.open_embedding := 
+-- is_open_immersion.lift (Y.of_restrict U.open_embedding) f
+--   (hU.trans $ subset_of_eq $ subtype.range_coe.symm)
+
+-- lemma Scheme.hom.lift_open_of_restrict (U : opens Y.carrier) (hU : set.range f.1.base ⊆ U.1) :
+--   X.of_restrict _ ≫ f.lift_open U hU = f ∣_ U :=  
+-- begin
+--   rw ← cancel_mono (Y.of_restrict U.open_embedding),
+--   rw [category.assoc, is_open_immersion.lift_fac, morphism_restrict_ι],
+-- end
+
+variable {f}
+
+variables (𝒰 : Scheme.open_cover.{u} Y) (𝒱 : ∀ i, Scheme.open_cover.{u} (pullback f (𝒰.map i)))
+
+def pullback.diagonal_cover :
+  (pullback.diagonal_obj f).open_cover :=
+(Scheme.pullback.open_cover_of_base 𝒰 f f).bind
+  (λ i, Scheme.pullback.open_cover_of_left_right (𝒱 i) (𝒱 i) pullback.snd pullback.snd)
+
+def pullback.diagonal_cover_diagonal :
+  opens (pullback.diagonal_obj f).carrier :=
+⨆ i : Σ i, (𝒱 i).J, ((pullback.diagonal_cover 𝒰 𝒱).map ⟨i.1, i.2, i.2⟩).opens_range
+
+-- move me
+@[simps]
+def pullback.triplet_mk {X Y Z : Scheme} (f : X ⟶ Z) (g : Y ⟶ Z) (x : X.carrier) (y : Y.carrier)
+  (h : f.1.base x = g.1.base y) : pullback.triplet f g :=
+⟨x, y, _, h, rfl⟩
+
+lemma pullback.diagonal_cover_map_eq (I) : (pullback.diagonal_cover 𝒰 𝒱).map I =
+  pullback.map _ _ _ _
+    ((𝒱 I.fst).map _ ≫ pullback.fst) ((𝒱 I.fst).map _ ≫ pullback.fst) (𝒰.map _)
+    (by simp only [category.assoc, pullback.condition])
+    (by simp only [category.assoc, pullback.condition]) :=
+begin
+  dsimp [pullback.diagonal_cover],
+  apply pullback.hom_ext; simp only [category.assoc, pullback.lift_fst, pullback.lift_snd,  
+      pullback.lift_fst_assoc, pullback.lift_snd_assoc,
+      pullback.diagonal_fst_assoc, pullback.diagonal_fst,
+      pullback.diagonal_snd_assoc, pullback.diagonal_snd, category.comp_id]
+end
+
+lemma pullback.diagonal_cover_diagonal_eq_top_of_injective (hf : function.injective f.1.base) :
+  pullback.diagonal_cover_diagonal 𝒰 𝒱 = ⊤ :=
+begin
+  rw eq_top_iff,
+  rintro x -, 
+  let x₁ := (pullback.fst : pullback.diagonal_obj f ⟶ X).1.base x,
+  let x₂ := (pullback.snd : pullback.diagonal_obj f ⟶ X).1.base x,
+  have hx : x₁ = x₂,
+  { apply hf, simp_rw [← Scheme.comp_val_base_apply, pullback.condition] },
+  let i := 𝒰.f (f.1.base x₁),
+  obtain ⟨t, ht⟩ : x₁ ∈ set.range (pullback.fst : pullback f (𝒰.map i) ⟶ _).1.base,
+  { rw is_open_immersion.range_pullback_fst_of_right, exact (𝒰.covers $ f.1.base x₁) },
+  obtain ⟨w, hw⟩ := (𝒱 i).covers t,
+  rw ← hw at ht,
+  refine opens.mem_supr.mpr ⟨⟨i, (𝒱 i).f t⟩, _⟩,
+  change _ ∈ set.range ((pullback.diagonal_cover 𝒰 𝒱).map ⟨i, ((𝒱 i).f t, (𝒱 i).f t)⟩).1.base,
+  simp_rw [pullback.diagonal_cover_map_eq 𝒰 𝒱, pullback.range_map],
+  split,
+  { exact ⟨w, ht⟩ },
+  { rw hx at ht, exact ⟨w, ht⟩ }
+end
+  
+lemma pullback.diagonal_range_subset_supr_diagonal_cover :
+  set.range (pullback.diagonal f).1.base ⊆ (pullback.diagonal_cover_diagonal 𝒰 𝒱).1 :=
+begin
+  rintros _ ⟨x, rfl⟩,
+  let i := 𝒰.f (f.1.base x),
+  obtain ⟨y, hy : (𝒰.map i).1.base y = _⟩ := 𝒰.covers (f.1.base x),
+  let T : pullback.triplet f (𝒰.map i) := ⟨x, y, _, rfl, hy⟩,
+  obtain ⟨z, (hzx : _ = x), (rfl : _ = y)⟩ := T.exists_preimage,
+  obtain ⟨w, hw⟩ := (𝒱 i).covers z,
+  rw [← hzx, ← hw],
+  refine opens.mem_supr.mpr ⟨⟨i, (𝒱 i).f z⟩,
+    (pullback.diagonal ((𝒱 i).map ((𝒱 i).f z) ≫ pullback.snd)).1.base w, _⟩,
+  simp_rw [← Scheme.comp_val_base_apply],
+  congr' 3,
+  dsimp [pullback.diagonal_cover],
+  apply pullback.hom_ext; simp only [category.assoc, pullback.lift_fst, pullback.lift_snd,  
+      pullback.lift_fst_assoc, pullback.lift_snd_assoc,
+      pullback.diagonal_fst_assoc, pullback.diagonal_fst,
+      pullback.diagonal_snd_assoc, pullback.diagonal_snd, category.comp_id],
+end
+
+def pullback.diagonal_restrict_iso_diagonal (i j) :
+  arrow.mk (pullback.diagonal f ∣_ ((pullback.diagonal_cover 𝒰 𝒱).map ⟨i, j, j⟩).opens_range) ≅
+    arrow.mk (pullback.diagonal ((𝒱 i).map j ≫ pullback.snd)) :=
+begin
+  refine (morphism_restrict_opens_range _ _) ≪≫ arrow.iso_mk _ _ _,
+  { dsimp [pullback.diagonal_cover], 
+    refine pullback.congr_hom rfl _ ≪≫
+      pullback_diagonal_map_iso f (𝒰.map i) ((𝒱 i).map j) ((𝒱 i).map j) ≪≫
+      as_iso pullback.fst,
+    apply pullback.hom_ext; simp only [category.assoc, pullback.lift_fst, pullback.lift_snd,  
+        pullback.lift_fst_assoc, pullback.lift_snd_assoc],
+      },
+  { dsimp [pullback.diagonal_cover], exact iso.refl _ },
+  { have : (pullback.fst : pullback ((𝒱 i).map j) ((𝒱 i).map j) ⟶ _) = pullback.snd,
+    { rw ← cancel_epi (pullback.diagonal $ (𝒱 i).map j),
+      rw [pullback.diagonal_fst, pullback.diagonal_snd] },
+    dsimp [pullback.diagonal_cover],
+    apply pullback.hom_ext,
+    swap, simp only [this],
+    all_goals { simp only [category.assoc, pullback.lift_fst, pullback.lift_snd,  
+      pullback.lift_fst_assoc, pullback.lift_snd_assoc, category.id_comp, category.comp_id,
+      pullback_diagonal_map_iso_hom_fst, pullback_diagonal_map_iso_hom_snd,
+      pullback.diagonal_fst, pullback.diagonal_snd] } }
+end
+
+lemma pullback.is_closed_immersion_lift_diagonal_aux
+  (H : ∀ i j, is_closed_immersion (pullback.diagonal ((𝒱 i).map j ≫ pullback.snd))) :
+  is_closed_immersion (pullback.diagonal f ∣_ pullback.diagonal_cover_diagonal 𝒰 𝒱) :=
+begin
+  rw (is_closed_immersion.open_cover_tfae (pullback.diagonal
+    f ∣_ pullback.diagonal_cover_diagonal 𝒰 𝒱)).out 0 5,
+  have : (⨆ i : Σ i, (𝒱 i).J, ((pullback.diagonal_cover 𝒰 𝒱).map ⟨i.1, i.2, i.2⟩).opens_range) =
+    pullback.diagonal_cover_diagonal 𝒰 𝒱 := rfl,
+  apply_fun (opens.map (pullback.diagonal_cover_diagonal 𝒰 𝒱).inclusion).obj at this,
+  rw [opens.map_supr, opens.inclusion_map_eq_top] at this,
+  refine ⟨_, _, this, _⟩,
+  rintros ⟨i, j⟩,
+  rw is_closed_immersion_respects_iso.arrow_mk_iso_iff
+    (morphism_restrict_restrict _ _ _),
+  rw is_closed_immersion_respects_iso.arrow_mk_iso_iff
+    (morphism_restrict_eq _ $ (opens.functor_map_eq_inf _ _).trans (inf_eq_left.mpr _)),
+  { rw is_closed_immersion_respects_iso.arrow_mk_iso_iff
+    (pullback.diagonal_restrict_iso_diagonal 𝒰 𝒱 i j), apply H },
+  { exact le_supr _ _ }
+end
+
+variable (f)
+
+lemma pullback.is_closed_immersion_lift_diagonal :
+  is_closed_immersion (pullback.diagonal f ∣_ pullback.diagonal_cover_diagonal
+    Y.affine_cover (λ _, Scheme.affine_cover _)) :=
+begin
+  apply pullback.is_closed_immersion_lift_diagonal_aux,
+  intros i j, apply is_closed_immersion_pullback_diagonal_Spec
+end
+
+
 local attribute [irreducible] Scheme.affine_cover
+
+def Scheme.restrict_top_iso (X : Scheme.{u}) : 
+  X.restrict (opens.open_embedding $ ⊤) ≅ X :=
+{ .. X.to_LocallyRingedSpace.restrict_top_iso }
 
 -- Declaring it as an instance adds superfluous universe variables
 @[instance]
 lemma _root_.category_theory.limits.pullback.diagonal.is_immersion {X Y : Scheme.{u}} (f : X ⟶ Y) :
   is_immersion (pullback.diagonal f) :=
 begin
-  let 𝒱 := λ i, (pullback f (Y.affine_cover.map i)).affine_cover,
-  let 𝒰 : (pullback f f).open_cover := (Scheme.pullback.open_cover_of_base Y.affine_cover _ _).bind
-    (λ i, Scheme.pullback.open_cover_of_left_right (𝒱 i) (𝒱 i) pullback.snd pullback.snd),
-  let I := Σ (i : Y.affine_cover.J), (𝒱 i).J,
-  let 𝒰' := λ (i : I), (𝒰.map ⟨i.1, i.2, i.2⟩).opens_range, 
-  have : set.range (pullback.diagonal f).1.base ⊆ ((supr 𝒰' : _) : set (pullback f f).carrier),
-  { rintros _ ⟨x, rfl⟩,
-    let i := Y.affine_cover.f (f.1.base x),
-    obtain ⟨y, hy : (Y.affine_cover.map i).1.base y = _⟩ := Y.affine_cover.covers (f.1.base x),
-    let T : pullback.triplet f (Y.affine_cover.map i) := ⟨x, y, _, rfl, hy⟩,
-    obtain ⟨z, (hzx : _ = x), (rfl : _ = y)⟩ := T.exists_preimage,
-    obtain ⟨w, hw⟩ := (𝒱 i).covers z,
-    rw [← hzx, ← hw],
-    refine opens.mem_supr.mpr ⟨⟨i, (𝒱 i).f z⟩,
-      (pullback.diagonal ((𝒱 i).map ((𝒱 i).f z) ≫ pullback.snd)).1.base w, _⟩,
-    simp_rw [← Scheme.comp_val_base_apply],
-    congr' 3,
-    dsimp [𝒰],
-      apply pullback.hom_ext; simp only [category.assoc, pullback.lift_fst, pullback.lift_snd,  
-          pullback.lift_fst_assoc, pullback.lift_snd_assoc,
-          pullback.diagonal_fst_assoc, pullback.diagonal_fst,
-          pullback.diagonal_snd_assoc, pullback.diagonal_snd, category.comp_id] },
-  apply is_immersion_open_cover_of_subset_supr _ _ this,
-  rintro ⟨i, j⟩,
-  have : arrow.mk (pullback.diagonal f ∣_ 𝒰' ⟨i, j⟩) ≅
-    arrow.mk (pullback.diagonal ((𝒱 i).map j ≫ pullback.snd)),
-  { refine (morphism_restrict_opens_range _ _) ≪≫ arrow.iso_mk _ _ _,
-    { dsimp [𝒰], 
-      refine pullback.congr_hom rfl _ ≪≫
-        pullback_diagonal_map_iso f (Y.affine_cover.map i) ((𝒱 i).map j) ((𝒱 i).map j) ≪≫
-        as_iso pullback.fst,
-      apply pullback.hom_ext; simp only [category.assoc, pullback.lift_fst, pullback.lift_snd,  
-          pullback.lift_fst_assoc, pullback.lift_snd_assoc],
-       },
-    { dsimp [𝒰], exact iso.refl _ },
-    { have : (pullback.fst : pullback ((𝒱 i).map j) ((𝒱 i).map j) ⟶ _) = pullback.snd,
-      { rw ← cancel_epi (pullback.diagonal $ (𝒱 i).map j),
-        rw [pullback.diagonal_fst, pullback.diagonal_snd] },
-      dsimp [𝒰],
-      apply pullback.hom_ext,
-      swap, simp only [this],
-      all_goals { simp only [category.assoc, pullback.lift_fst, pullback.lift_snd,  
-        pullback.lift_fst_assoc, pullback.lift_snd_assoc, category.id_comp, category.comp_id,
-        pullback_diagonal_map_iso_hom_fst, pullback_diagonal_map_iso_hom_snd,
-        pullback.diagonal_fst, pullback.diagonal_snd] } } },
-  apply (is_immersion_respects_iso.arrow_iso_iff this).mpr _,
-  apply_with is_closed_immersion.to_is_immersion { instances := ff },
-  dsimp only [𝒱, Scheme.affine_cover],
-  apply is_closed_immersion_pullback_diagonal_Spec,
+  let U := (pullback.diagonal_cover_diagonal Y.affine_cover (λ _, Scheme.affine_cover _)),
+  haveI : is_closed_immersion (pullback.diagonal f ∣_ U) :=
+    pullback.is_closed_immersion_lift_diagonal f,
+  have : (opens.map (pullback.diagonal f).val.base).obj U = ⊤,
+  { ext1, show (pullback.diagonal f).val.base ⁻¹' U.1 = set.univ,
+    rw [← set.univ_subset_iff, ← set.image_subset_iff, set.image_univ],
+    exact pullback.diagonal_range_subset_supr_diagonal_cover _ _ },
+  haveI : is_iso (X.of_restrict ((opens.map (pullback.diagonal f).val.base).obj U).open_embedding),
+  { rw this, exact is_iso.of_iso X.restrict_top_iso },
+  have := morphism_restrict_ι (pullback.diagonal f) U,
+  rw [← is_iso.inv_comp_eq] at this,
+  rw ← this,
+  apply_instance
+end
+-- move me 
+def morphism_restrict.top_iso : arrow.mk (f ∣_ ⊤) ≅ arrow.mk f :=
+arrow.iso_mk' (f ∣_ ⊤) f X.restrict_top_iso Y.restrict_top_iso (morphism_restrict_ι _ _).symm
+
+-- Also see `separated_of_injective`
+lemma pullback.diagonal_is_closed_immersion_of_injective {X Y : Scheme.{u}} (f : X ⟶ Y)
+  (hf : function.injective f.1.base) :
+  is_closed_immersion (pullback.diagonal f) :=
+begin
+  let U := (pullback.diagonal_cover_diagonal Y.affine_cover (λ _, Scheme.affine_cover _)),
+  have hU : is_closed_immersion (pullback.diagonal f ∣_ U) :=
+    pullback.is_closed_immersion_lift_diagonal f,
+  have : U = ⊤ := pullback.diagonal_cover_diagonal_eq_top_of_injective _ _ hf,
+  rw this at hU,
+  exact (is_closed_immersion_respects_iso.arrow_mk_iso_iff (morphism_restrict.top_iso _)).mp hU
 end
 
 end algebraic_geometry

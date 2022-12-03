@@ -182,6 +182,12 @@ begin
     exact hS' ⟨r, hr⟩ }
 end
 
+lemma affine_is_local_at_target :
+  property_is_local_at_target @affine :=
+affine_eq_affine_property.symm ▸
+  affine_affine_property_is_local.target_affine_locally_is_local
+
+
 lemma affine_affine_property_stable_under_base_change :
   affine_target_morphism_property.stable_under_base_change affine.affine_property :=
 begin
@@ -191,6 +197,16 @@ begin
   apply_instance
 end
 
+lemma affine_stable_under_base_change :
+  morphism_property.stable_under_base_change @affine :=
+affine_eq_affine_property.symm ▸
+  affine_affine_property_is_local.stable_under_base_change 
+    affine_affine_property_stable_under_base_change
+
+lemma affine_stable_under_composition :
+  morphism_property.stable_under_composition @affine :=
+λ X Y Z f g hf hg, by exactI infer_instance
+  
 lemma affine_over_affine_iff {X Y : Scheme} (f : X ⟶ Y) [is_affine Y] :
   affine f ↔ is_affine X :=
 affine_eq_affine_property.symm ▸

@@ -36,7 +36,8 @@ of quasi-compact open sets are quasi-compact.
 -/
 @[mk_iff]
 class quasi_compact (f : X ⟶ Y) : Prop :=
-(is_compact_preimage : ∀ U : set Y.carrier, is_open U → is_compact U → is_compact (f.1.base ⁻¹' U))
+(is_compact_preimage [] : ∀ U : set Y.carrier,
+  is_open U → is_compact U → is_compact (f.1.base ⁻¹' U))
 
 lemma quasi_compact_iff_spectral : quasi_compact f ↔ is_spectral_map f.1.base :=
 ⟨λ ⟨h⟩, ⟨by continuity, h⟩, λ h, ⟨h.2⟩⟩

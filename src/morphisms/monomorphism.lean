@@ -18,6 +18,17 @@ begin
   exact hz.symm.trans hz'
 end
 
+lemma surjective_diagonal_of_universally_injective {X Y : Scheme} (f : X ⟶ Y)
+  (h : function.surjective (pullback.diagonal f).1.base) : function.injective f.1.base :=
+begin
+  intros x y e,
+  let T : pullback.triplet f f := ⟨x, y, _, e, rfl⟩,
+  obtain ⟨z, hz, hz'⟩ := T.exists_preimage,
+  obtain ⟨z', rfl⟩ := h z,
+  simp only [← Scheme.comp_val_base_apply, pullback.diagonal_fst, pullback.diagonal_snd] at hz hz',
+  exact hz.symm.trans hz'
+end
+
 lemma injective_of_mono {X Y : Scheme} (f : X ⟶ Y) [mono f] : 
   function.injective f.1.base :=
 begin

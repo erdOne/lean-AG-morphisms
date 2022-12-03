@@ -1,7 +1,5 @@
-import morphisms.universally_closed
-import ring_theory.valuation.valuation_ring
 import for_mathlib.valuation_subring
-import morphisms.separated
+import morphisms.proper
 import algebraic_geometry.properties
 
 noncomputable theory
@@ -127,7 +125,7 @@ begin
   { apply functor.mono_of_mono_map (forget CommRing), rw mono_iff_injective,
     exact (is_fraction_ring.injective R K : _) },
   have hψ' : ψ' ≫ CommRing.of_hom (algebra_map R K) = ψ, 
-  { rw ← hϕ, ext1 y,
+  { rw ← hϕ, apply ring_hom.ext, intro y,
     change ((ring_equiv.of_bijective _ hψ) $ (ring_equiv.of_bijective _ hψ).symm _).1 = _,
     rw ring_equiv.apply_symm_apply, refl },
   haveI : local_ring (CommRing.of R) := show local_ring R, by apply_instance,
@@ -218,18 +216,6 @@ begin
   { apply pullback.hom_ext; simp only [category.assoc, pullback.diagonal_fst, pullback.diagonal_snd,
       category.comp_id, this] }
 end
-.
-
---move me
-def Spec_Γ_arrow_iso_of_is_affine [is_affine X] [is_affine Y] :
-  arrow.mk f ≅ arrow.mk (Scheme.Spec.map (Scheme.Γ.map f.op).op) :=
-arrow.iso_mk' _ _ (as_iso $ Γ_Spec.adjunction.unit.app _) (as_iso $ Γ_Spec.adjunction.unit.app _)
-  (Γ_Spec.adjunction.unit_naturality f)
-
---move me
-def Γ_Spec_arrow_iso {R S : CommRing} (f : R ⟶ S) :
-  arrow.mk f ≅ arrow.mk (Scheme.Γ.map (Scheme.Spec.map f.op).op) :=
-(arrow.iso_of_nat_iso Spec_Γ_identity (arrow.mk f)).symm
 
 lemma separated.valuative_criterion [separated f] :
   valuative_criterion.uniqueness f :=
@@ -283,5 +269,26 @@ begin
 end
 
 end uniqueness
+
+lemma valuative_criterion_eq :
+  valuative_criterion = valuative_criterion.existence ⊓ valuative_criterion.uniqueness :=
+begin
+  ext X Y f,
+  refine (forall_congr _).trans forall_and_distrib,
+  intro S,
+  split,
+  { rintro ⟨h⟩, exactI ⟨⟨⟨h.1.1⟩⟩, infer_instance⟩ },
+  { rintro ⟨⟨⟨h₁⟩⟩, _⟩, exactI ⟨⟨⟨h₁⟩, λ _, subsingleton.elim _ _⟩⟩ }
+end
+
+lemma proper_eq_valuative_criterion :
+  @proper = @quasi_compact ⊓ @quasi_separated ⊓ @locally_of_finite_type ⊓ valuative_criterion :=
+begin
+  rw [proper_eq, valuative_criterion_eq, separated_eq_valuative_criterion,
+    universally_closed_eq_valuative_criterion],
+  simp_rw [inf_comm, inf_assoc, inf_left_comm],
+  congr' 2,
+  rw [inf_comm, inf_assoc]
+end
 
 end algebraic_geometry

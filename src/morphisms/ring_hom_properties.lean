@@ -561,6 +561,27 @@ begin
       apply hf } }
 end
 
+lemma source_affine_locally_stable_under_base_change (h : ring_hom.stable_under_base_change @P) :
+  (source_affine_locally @P).stable_under_base_change :=
+begin
+  intros X Y S hS hX f g H,
+  resetI,
+  rw (hP.affine_open_cover_tfae (pullback.fst : pullback f g ⟶ _)).out 0 1,
+  rw (hP.affine_open_cover_tfae g).out 0 2 at H,
+  use Scheme.pullback.open_cover_of_right Y.affine_cover f g,
+  split,
+  { intro i, dsimp, apply_instance },
+  intro i,
+  erw pullback.lift_fst,
+  rw category.comp_id,
+  exact h.Γ_pullback_fst hP.respects_iso _ _ (H Y.affine_cover i),
+end
+
+lemma affine_locally_stable_under_base_change (h : ring_hom.stable_under_base_change @P) :
+  morphism_property.stable_under_base_change (affine_locally @P) :=
+hP.is_local_source_affine_locally.stable_under_base_change
+  (source_affine_locally_stable_under_base_change hP h)
+
 end ring_hom.property_is_local
 
 namespace algebraic_geometry
@@ -691,6 +712,17 @@ begin
   apply target_affine_locally_mono,
   rintros X Y hY f ⟨hX, hf⟩,
   exact ⟨hX, H _ hf⟩,
+end
+
+lemma affine_and_Spec_iff {P}
+  (h₁ : ring_hom.respects_iso @P) {R S : CommRing} (f : R ⟶ S) :
+  affine_and @P (Scheme.Spec.map f.op) ↔ P f :=
+begin
+  dsimp only [affine_and],
+  rw and_iff_right (show is_affine (Scheme.Spec.obj (op S)), by apply_instance),
+  have := arrow.iso_w (Γ_Spec_arrow_iso f),
+  dsimp only [arrow.mk_hom] at this,
+  rw [this, h₁.cancel_left_is_iso, h₁.cancel_right_is_iso],
 end
 
 end algebraic_geometry

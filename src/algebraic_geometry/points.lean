@@ -457,42 +457,61 @@ CommRing.of $ local_ring.residue_field (X.presheaf.stalk x)
 instance {x : X.carrier} : field (X.residue_field x) :=
 show field (local_ring.residue_field _), by apply_instance
 
+def Scheme.to_residue_field (X : Scheme) (x) : X.stalk x ⟶ X.residue_field x :=
+local_ring.residue _ 
+
+def Scheme.desc_residue_field {K : Type*} [field K] (X : Scheme) {x}
+  (f : X.stalk x ⟶ CommRing.of K) [is_local_ring_hom f] : X.residue_field x ⟶ CommRing.of K :=
+local_ring.lift_residue_field f
+
+@[simp, reassoc]
+lemma Scheme.to_desc_residue_field {K : Type*} [field K] (X : Scheme) {x}
+  (f : X.stalk x ⟶ CommRing.of K) [is_local_ring_hom f] :
+  X.to_residue_field x ≫ X.desc_residue_field f = f := 
+ring_hom.ext (λ _, rfl)
+
+instance (x) : epi (X.to_residue_field x) :=
+begin
+  refine (forget _).epi_of_epi_map _,
+  exact (epi_iff_surjective _).mpr ideal.quotient.mk_surjective
+end
+
+instance (x) : is_local_ring_hom (X.to_residue_field x) := local_ring.is_local_ring_hom_residue
+
 def Scheme.residue_field_of_eq (X : Scheme) {x y : X.carrier} (h : x = y) :
   X.residue_field y ⟶ X.residue_field x :=
-ideal.quotient.lift _
-  ((local_ring.residue (X.presheaf.stalk x)).comp $
-    X.presheaf.stalk_specializes $ specializes_of_eq h)
-begin
-  intros a ha,
-  apply ideal.quotient.eq_zero_iff_mem.mpr,
-  rw ← ideal.mem_comap,
-  haveI : is_iso (X.presheaf.stalk_specializes $ specializes_of_eq h),
-  { refine ⟨⟨(X.presheaf.stalk_specializes $ specializes_of_eq h.symm), _, _⟩⟩;
-      rw [Top.presheaf.stalk_specializes_comp, Top.presheaf.stalk_specializes_refl] },
-  rwa ((local_ring.local_hom_tfae
-    (X.presheaf.stalk_specializes $ specializes_of_eq h)).out 0 4).mp infer_instance,
-end
+X.desc_residue_field
+  (X.presheaf.stalk_specializes (specializes_of_eq h) ≫ X.to_residue_field x)
+
+@[simp, reassoc]
+lemma Scheme.to_residue_field_of_eq (x y) (e : x = y) :
+  X.to_residue_field _ ≫ X.residue_field_of_eq e =
+    (X.presheaf.stalk_congr $ inseparable.of_eq e.symm).hom ≫ X.to_residue_field _ :=
+rfl
 
 @[simp, reassoc]
 lemma Scheme.residue_field_of_eq_trans (X : Scheme) {x y z : X.carrier} (h : x = y) (h' : y = z) :
   X.residue_field_of_eq h' ≫ X.residue_field_of_eq h = X.residue_field_of_eq (h.trans h') :=
-ideal.quotient.ring_hom_ext $ by { ext, simp [Scheme.residue_field_of_eq, local_ring.residue] }
+by { rw ← cancel_epi (X.to_residue_field z), simpa }
 
 @[simp]
 lemma Scheme.residue_field_of_eq_refl (X : Scheme) {x : X.carrier} :
   X.residue_field_of_eq (refl x) = 𝟙 _ :=
-ideal.quotient.ring_hom_ext $ by { ext, simp [Scheme.residue_field_of_eq, local_ring.residue] }
+begin
+  rw [← cancel_epi (X.to_residue_field x), Scheme.to_residue_field_of_eq,
+    Top.presheaf.stalk_congr_hom],
+  erw [X.presheaf.stalk_specializes_refl x, category.id_comp],
+end
 
 def Scheme.hom.map_residue_field {X Y : Scheme} (f : X ⟶ Y) (x : X.carrier) :
   Y.residue_field (f.1.base x) ⟶ X.residue_field x :=
-ideal.quotient.lift _
-  ((local_ring.residue (X.presheaf.stalk x)).comp $ PresheafedSpace.stalk_map f.1 x)
-begin
-  intros a ha,
-  apply ideal.quotient.eq_zero_iff_mem.mpr,
-  rw ← ideal.mem_comap,
-  rwa ((local_ring.local_hom_tfae (PresheafedSpace.stalk_map f.1 x)).out 0 4).mp infer_instance,
-end
+Y.desc_residue_field (PresheafedSpace.stalk_map f.1 x ≫ X.to_residue_field x)
+
+@[simp, reassoc]
+lemma Scheme.to_residue_field_map_residue_field {X Y : Scheme} (f : X ⟶ Y) (x : X.carrier) :
+  Y.to_residue_field (f.1.base x) ≫ f.map_residue_field x =
+    PresheafedSpace.stalk_map f.1 x ≫ X.to_residue_field x :=
+Y.to_desc_residue_field (PresheafedSpace.stalk_map f.1 x ≫ X.to_residue_field x)
 
 def Scheme.from_Spec_residue_field (X : Scheme) (x : X.carrier) :
   Scheme.Spec.obj (op $ X.residue_field x) ⟶ X :=
@@ -567,9 +586,9 @@ begin
   exact ⟨λ ⟨a, b⟩, b.symm, λ e, ⟨(⊥ : prime_spectrum (X.residue_field x)), e.symm⟩⟩,
 end
 .
-lemma Spec_map_lift_residue_field_from_Spec_residue_field (K : Type*) [field K] (X : Scheme)
+lemma Spec_map_desc_residue_field_from_Spec_residue_field (K : Type*) [field K] (X : Scheme)
   (f : Scheme.Spec.obj (op $ CommRing.of K) ⟶ X) :
-  Scheme.Spec.map (CommRing.of_hom (local_ring.lift_residue_field (stalk_closed_point_to _ f))).op
+  Scheme.Spec.map (X.desc_residue_field (stalk_closed_point_to _ f)).op
     ≫ X.from_Spec_residue_field (f.1.base (local_ring.closed_point K)) = f :=
 begin
   dsimp only [Scheme.from_Spec_residue_field],
@@ -585,7 +604,7 @@ by { split, { rintro rfl, exact ⟨rfl, by simp⟩ },
 
 lemma Spec_to_equiv_of_field_right_inv {K : Type*} [field K] {X : Scheme}
   (xf : Σ x : X.carrier, X.residue_field x ⟶ CommRing.of K) :
-  (sigma.mk _ (local_ring.lift_residue_field (stalk_closed_point_to _ $
+  (sigma.mk _ (X.desc_residue_field (stalk_closed_point_to _ $
     Scheme.Spec.map xf.2.op ≫ X.from_Spec_residue_field xf.1)) :
       Σ x : X.carrier, X.residue_field x ⟶ CommRing.of K) = xf :=
 begin
@@ -611,9 +630,9 @@ end
 def Spec_to_equiv_of_field (K : Type*) [field K] (X : Scheme) :
   (Scheme.Spec.obj (op $ CommRing.of $ K) ⟶ X) ≃
     Σ x : X.carrier, X.residue_field x ⟶ CommRing.of K :=
-{ to_fun := λ f, ⟨_, local_ring.lift_residue_field (stalk_closed_point_to _ f)⟩,
+{ to_fun := λ f, ⟨_, X.desc_residue_field (stalk_closed_point_to _ f)⟩,
   inv_fun := λ xf, Scheme.Spec.map xf.2.op ≫ X.from_Spec_residue_field xf.1,
-  left_inv := Spec_map_lift_residue_field_from_Spec_residue_field K X,
+  left_inv := Spec_map_desc_residue_field_from_Spec_residue_field K X,
   right_inv := Spec_to_equiv_of_field_right_inv }
 
 end residue_field

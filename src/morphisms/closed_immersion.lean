@@ -216,33 +216,67 @@ begin
   { exact (linear_equiv.to_equiv _).surjective },
 end
 
+lemma property_le_of_le_affine {P₁ P₂ : morphism_property Scheme}
+  (h₁ : P₁ ≤ @affine)
+  (h₁' : property_is_local_at_target P₁) (h₂' : property_is_local_at_target P₂) 
+  (h : ∀ {R S : CommRing} (f : R ⟶ S), P₁ (Scheme.Spec.map f.op) → P₂ (Scheme.Spec.map f.op)) :
+  P₁ ≤ P₂ :=
+begin
+  rw [← h₁'.target_affine_locally_eq, ← h₂'.target_affine_locally_eq],
+  apply target_affine_locally_mono,
+  intros X Y f hX hf,
+  haveI := h₁ _ _ _ hf,
+  haveI := is_affine_of_affine f,
+  have := Γ_Spec.adjunction.unit_naturality f,
+  rw [← h₂'.respects_iso.cancel_right_is_iso f (Γ_Spec.adjunction.unit.app Y),
+    ← Γ_Spec.adjunction.unit_naturality f, h₂'.respects_iso.cancel_left_is_iso],
+  rw [← h₁'.respects_iso.cancel_right_is_iso f (Γ_Spec.adjunction.unit.app Y),
+    ← Γ_Spec.adjunction.unit_naturality f, h₁'.respects_iso.cancel_left_is_iso] at hf,
+  exact h (Scheme.Γ.map f.op) hf
+end
+
+lemma property_ext_of_le_affine {P₁ P₂ : morphism_property Scheme}
+  (h₁ : P₁ ≤ @affine) (h₂ : P₂ ≤ @affine)
+  (h₁' : property_is_local_at_target P₁) (h₂' : property_is_local_at_target P₂) 
+  (h : ∀ {R S : CommRing} (f : R ⟶ S), P₁ (Scheme.Spec.map f.op) ↔ P₂ (Scheme.Spec.map f.op)) :
+  P₁ = P₂ :=
+begin
+  refine (property_le_of_le_affine h₁ h₁' h₂' _).antisymm (property_le_of_le_affine h₂ h₂' h₁' _);
+    simp only [h, forall_3_true_iff, imp_self]
+end
+
 def is_closed_immersion.affine_property : affine_target_morphism_property :=
 affine_and $ λ R S _ _ f, function.surjective f
+
+-- move me
+lemma _root_.ring_hom.localization_surjective : 
+  ring_hom.localization_preserves (λ R S _ _ f, function.surjective ⇑f) :=
+begin
+  introsI R S _ _ f M R' S' _ _ _ _ _ _ H x,
+  obtain ⟨x, ⟨_, ⟨s, hs, rfl⟩⟩, rfl⟩ := is_localization.mk'_surjective (M.map f) x,
+  obtain ⟨x, rfl⟩ := H x,
+  exact ⟨is_localization.mk' R' x ⟨s, hs⟩, is_localization.map_mk' _ _ _⟩
+end
+
+lemma is_closed_immersion.affine_property_is_local :
+  (is_closed_immersion.affine_property : _).is_local :=
+is_local_affine_and _
+  ring_hom.surjective_respects_iso
+  ring_hom.localization_surjective
+  ring_hom.surjective_of_localization_span
 
 lemma is_closed_immersion_eq_affine_property : 
   @is_closed_immersion = target_affine_locally is_closed_immersion.affine_property :=
 begin
-  rw ← is_closed_immersion_is_local_at_target.target_affine_locally_eq,
-  congr' 1,
-  ext X Y f hY,
-  let R : CommRing := _, let S := _, let ϕ : R ⟶ S := Scheme.Γ.map f.op,
-  resetI,
-  split,
-  { refine λ h, ⟨is_affine_of_closed_embedding f h.1, _⟩,
-    haveI := is_affine_of_closed_embedding f h.1,
-    haveI : is_closed_immersion (Scheme.Spec.map ϕ.op),
-    { have := Γ_Spec.adjunction.unit_naturality f,
-      rw [← is_iso.eq_inv_comp, functor.right_op_map] at this,
-      rwa [this, is_closed_immersion_respects_iso.cancel_left_is_iso,
-        is_closed_immersion_respects_iso.cancel_right_is_iso] },
-    exact (surjective_of_is_closed_immersion ϕ : _) },
-  { rintro ⟨h₁, h₂⟩,
-    resetI,
-    have := Γ_Spec.adjunction.unit_naturality f,
-    rw [← is_iso.comp_inv_eq, functor.right_op_map] at this,
-    rw [← this, is_closed_immersion_respects_iso.cancel_right_is_iso,
-        is_closed_immersion_respects_iso.cancel_left_is_iso],
-    refine ⟨prime_spectrum.closed_embedding_comap_of_surjective _ _ h₂,
+  apply property_ext_of_le_affine is_closed_immersion_le_affine
+    (by exact (target_affine_locally_affine_and_le_affine _)) is_closed_immersion_is_local_at_target
+    is_closed_immersion.affine_property_is_local.target_affine_locally_is_local,
+  simp_rw [is_closed_immersion.affine_property_is_local.affine_target_iff,
+    is_closed_immersion.affine_property, affine_and_Spec_iff ring_hom.surjective_respects_iso],
+  intros R S ϕ,
+  refine ⟨λ h, by exactI surjective_of_is_closed_immersion ϕ, _⟩,
+  { introI h,
+    refine ⟨prime_spectrum.closed_embedding_comap_of_surjective _ _ h,
       (Top.presheaf.locally_surjective_iff_surjective_on_stalks _).mpr _⟩,
     rintro (x : prime_spectrum R),
     letI := ϕ.to_algebra,
@@ -255,25 +289,7 @@ begin
     rw [← linear_map.coe_comp, ← this],
     apply function.surjective.comp,
     { exact (linear_equiv.to_equiv _).surjective },
-    { exact linear_map.surjective_localized_module_map _ (algebra.of_id R S).to_linear_map h₂ } }
-end
-
-lemma _root_.ring_hom.localization_surjective : 
-  ring_hom.localization_preserves (λ R S _ _ f, function.surjective ⇑f) :=
-begin
-  introsI R S _ _ f M R' S' _ _ _ _ _ _ H x,
-  obtain ⟨x, ⟨_, ⟨s, hs, rfl⟩⟩, rfl⟩ := is_localization.mk'_surjective (M.map f) x,
-  obtain ⟨x, rfl⟩ := H x,
-  exact ⟨is_localization.mk' R' x ⟨s, hs⟩, is_localization.map_mk' _ _ _⟩
-end
-
-lemma is_closed_immersion.affine_property_is_local :
-  (is_closed_immersion.affine_property : _).is_local :=
-begin
-  apply is_local_affine_and,
-  { exact ring_hom.surjective_respects_iso },
-  { exact ring_hom.localization_surjective },
-  { exact ring_hom.surjective_of_localization_span } 
+    { exact linear_map.surjective_localized_module_map _ (algebra.of_id R S).to_linear_map h } }
 end
 
 lemma is_closed_immersion.affine_open_cover_tfae {X Y : Scheme.{u}} (f : X ⟶ Y) :
@@ -328,18 +344,12 @@ lemma is_closed_immersion_over_affine_iff {X Y : Scheme} (f : X ⟶ Y) [is_affin
 is_closed_immersion_eq_affine_property.symm ▸
   is_closed_immersion.affine_property_is_local.affine_target_iff f
 
--- generalize me
 lemma is_closed_immersion_Spec_iff {R S : CommRing} (f : R ⟶ S) :
   is_closed_immersion (Scheme.Spec.map f.op) ↔ function.surjective f :=
 begin
-  rw [is_closed_immersion_over_affine_iff,
-    ← function.surjective.of_comp_iff (Scheme.Γ.map (Scheme.Spec.map f.op).op)
-    (as_iso $ to_Spec_Γ R).CommRing_iso_to_ring_equiv.surjective, ← ring_equiv.coe_to_ring_hom,
-    ← ring_equiv.to_ring_hom_eq_coe, iso.CommRing_iso_to_ring_equiv_to_ring_hom,
-    ← coe_comp, as_iso_hom, ← Spec_Γ_naturality', coe_comp, function.surjective.of_comp_iff',
-    and_iff_right],
-  { apply_instance },
-  { exact (as_iso $ to_Spec_Γ S).CommRing_iso_to_ring_equiv.bijective }
+  rw [is_closed_immersion_eq_affine_property,
+    is_closed_immersion.affine_property_is_local.affine_target_iff,
+    is_closed_immersion.affine_property, affine_and_Spec_iff ring_hom.surjective_respects_iso]
 end
 
 local attribute [instance] mono_comp

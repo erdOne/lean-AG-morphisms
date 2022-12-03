@@ -49,7 +49,8 @@ end
 @[priority 900]
 instance locally_of_finite_type_of_is_open_immersion {X Y : Scheme} (f : X ⟶ Y)
   [is_open_immersion f] : locally_of_finite_type f :=
-locally_of_finite_type_eq.symm ▸ ring_hom.finite_type_is_local.affine_locally_of_is_open_immersion f
+locally_of_finite_type_eq.symm ▸
+  ring_hom.finite_type_is_local.affine_locally_of_is_open_immersion f
 
 lemma locally_of_finite_type_stable_under_composition :
   morphism_property.stable_under_composition @locally_of_finite_type :=
@@ -96,5 +97,62 @@ lemma locally_of_finite_type_respects_iso :
   morphism_property.respects_iso @locally_of_finite_type :=
 locally_of_finite_type_eq.symm ▸ target_affine_locally_respects_iso
   (source_affine_locally_respects_iso ring_hom.finite_type_respects_iso)
+
+lemma locally_of_finite_type_is_local_at_target :
+  property_is_local_at_target @locally_of_finite_type :=
+locally_of_finite_type_eq.symm ▸
+  (source_affine_locally_is_local ring_hom.finite_type_respects_iso
+    ring_hom.finite_type_is_local.localization_preserves 
+     ring_hom.finite_type_is_local.of_localization_span).target_affine_locally_is_local
+
+-- move me
+lemma subalgebra.map_top {R S T : Type*} [comm_ring R] [comm_ring S] [comm_ring T]
+  [algebra R S] [algebra R T] (f : S →ₐ[R] T) : (⊤ : subalgebra R S).map f = f.range := 
+begin
+  ext, simp,
+end
+
+-- move me
+lemma _root_.ring_hom.finite_type_stable_under_base_change :
+  ring_hom.stable_under_base_change @ring_hom.finite_type :=
+begin
+  classical,
+  rintros R S T _ _ _ _ i7 ⟨⟨s, hs⟩⟩,
+  resetI,
+  suffices : algebra.finite_type S (tensor_product R S T),
+  { delta ring_hom.finite_type, convert this, apply algebra.algebra_ext, intro _, refl },
+  replace hs : algebra.adjoin R (↑s : set T) = ⊤,
+  { have : i7 = (algebra_map R T).to_algebra := algebra.algebra_ext _ _ (λ _, rfl), convert hs },
+  refine ⟨⟨s.image algebra.tensor_product.include_right, _⟩⟩,
+  rw [finset.coe_image, ← @algebra.adjoin_adjoin_of_tower R S (tensor_product R S T),
+    algebra.adjoin_image, hs, subalgebra.map_top, eq_top_iff],
+  rintro x -,
+  induction x using tensor_product.induction_on with x y x y hx hy,
+  { exact zero_mem _ },
+  { convert_to x • ((1 : S) ⊗ₜ y) ∈ _,
+    { rw [tensor_product.smul_tmul', ← algebra.algebra_map_eq_smul_one], refl },
+    { exact subalgebra.smul_mem _ (algebra.subset_adjoin ⟨y, rfl⟩) _ } },
+  { exact add_mem hx hy }
+end
+
+lemma locally_of_finite_type_stable_under_base_change :
+  morphism_property.stable_under_base_change @locally_of_finite_type :=
+locally_of_finite_type_eq.symm ▸
+  ring_hom.finite_type_is_local.affine_locally_stable_under_base_change
+    ring_hom.finite_type_stable_under_base_change
+
+-- generalize me
+lemma locally_of_finite_type_Spec_iff {R S : CommRing} (f : R ⟶ S) :
+  locally_of_finite_type (Scheme.Spec.map f.op) ↔ ring_hom.finite_type f :=
+begin
+  transitivity (@affine ⊓ @locally_of_finite_type) (Scheme.Spec.map f.op),
+  { refine (and_iff_right _).symm, apply_instance },
+  { rw [locally_of_finite_type_eq, ← ring_hom.property_is_local.affine_and_eq,
+      (is_local_affine_and _ _ _ _).affine_target_iff, affine_and_Spec_iff],
+    exacts [ring_hom.finite_type_respects_iso, ring_hom.finite_type_respects_iso,
+      ring_hom.finite_type_is_local.localization_preserves,
+      ring_hom.finite_type_is_local.of_localization_span,
+      ring_hom.finite_type_is_local] }
+end
 
 end algebraic_geometry
