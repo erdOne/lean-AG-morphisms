@@ -8,7 +8,6 @@ import morphisms.open_immersion
 import morphisms.closed_immersion
 import for_mathlib.locally_closed
 import morphisms.integral
-import algebraic_geometry.pullback_carrier
 
 /-!
 
@@ -32,65 +31,46 @@ variables {X Y Z : Scheme.{u}} (f : X ⟶ Y) (g : Y ⟶ Z)
 
 /-- A morphism is a `is_closed_immersion` if the preimages of affine open sets are affine. -/
 @[mk_iff]
-class is_immersion (f : X ⟶ Y) : Prop :=
-(base_embedding [] : embedding f.1.base)
+class is_immersion (f : X ⟶ Y) extends is_preimmersion f : Prop :=
 (range_is_locally_closed [] : is_locally_closed (set.range f.1.base))
-(stalk_map_surjective [] : ∀ x, function.surjective (PresheafedSpace.stalk_map f.1 x))
+
+lemma is_immersion.base_embedding [is_immersion f] : embedding f.1.base :=
+is_preimmersion.base_embedding f
 
 instance [is_immersion f] [is_immersion g] : is_immersion (f ≫ g) :=
 begin
   constructor,
-  { exact (is_immersion.base_embedding g).comp (is_immersion.base_embedding f) },
-  { rw [Scheme.comp_val_base, coe_comp, set.range_comp],
-    exact (is_immersion.range_is_locally_closed f).image (is_immersion.base_embedding g).to_inducing
-      (is_immersion.range_is_locally_closed g) },
-  { intro x, erw PresheafedSpace.stalk_map.comp f.1 g.1 x,
-    exact (is_immersion.stalk_map_surjective f _).comp (is_immersion.stalk_map_surjective g _) }
+  rw [Scheme.comp_val_base, coe_comp, set.range_comp],
+  exact (is_immersion.range_is_locally_closed f).image (is_immersion.base_embedding g).to_inducing
+    (is_immersion.range_is_locally_closed g)
 end
-
--- move me
-lemma is_open_immersion.base_open [H : is_open_immersion f] : open_embedding f.1.base :=
-H.1
 
 instance is_open_immersion.to_is_immersion [is_open_immersion f] : is_immersion f :=
 begin
   constructor,
-  { exact (is_open_immersion.base_open f).to_embedding },
-  { exact (is_open_immersion.base_open f).2.is_locally_closed },
-  { exact λ x, (as_iso $ PresheafedSpace.stalk_map f.1 x).CommRing_iso_to_ring_equiv.surjective }
+  exact (is_open_immersion.base_open f).2.is_locally_closed
 end
 
 instance is_closed_immersion.to_is_immersion [is_closed_immersion f] : is_immersion f :=
-begin
-  constructor,
-  { exact (is_closed_immersion.base_closed f).to_embedding },
-  { exact (is_closed_immersion.base_closed f).2.is_locally_closed },
-  { exact is_closed_immersion.stalk_map_surjective f }
-end
+⟨(is_closed_immersion.base_closed f).2.is_locally_closed⟩ 
+
+lemma is_closed_immersion_iff_is_immersion {f : X ⟶ Y} :
+  is_closed_immersion f ↔ is_immersion f ∧ is_closed (set.range f.1.base) :=
+⟨λ H, by exactI ⟨infer_instance, H.2⟩, λ ⟨h₁, h₂⟩, by exactI ⟨h₂⟩⟩   
 
 lemma is_closed_immersion.of_is_immersion [is_immersion f] (hf : is_closed (set.range f.1.base)) :
   is_closed_immersion f :=
-begin
-  rw is_closed_immersion_iff_stalk,
-  exact ⟨⟨is_immersion.base_embedding f, hf⟩, is_immersion.stalk_map_surjective f⟩
-end
+⟨hf⟩
 
--- In fact it still holds if `g` is topologically a locally closed embedding
+/-- Also see `is_immersion.of_comp` in the file `morphisms/separated` -/
 lemma is_immersion.of_comp_of_is_immersion [is_immersion (f ≫ g)] [is_immersion g] :
   is_immersion f :=
 begin
+  haveI := is_preimmersion.of_comp f g,
   constructor,
-  { exact embedding_of_embedding_compose f.1.base.2 g.1.base.2
-      (is_immersion.base_embedding $ f ≫ g) },
-  { rw (is_immersion.base_embedding g).to_inducing.is_locally_closed_iff,
-    refine ⟨_, is_immersion.range_is_locally_closed (f ≫ g), _⟩,
-    rw [Scheme.comp_val_base, coe_comp, set.range_comp],
-    exact set.preimage_image_eq (set.range f.1.base) (is_immersion.base_embedding g).inj },
-  { intro x,
-    have := (is_immersion.stalk_map_surjective $ f ≫ g) x,
-    erw PresheafedSpace.stalk_map.comp at this,
-    rw coe_comp at this,
-    exact function.surjective.of_comp this }
+  rw [← set.preimage_image_eq (set.range f.1.base) (is_immersion.base_embedding g).inj,
+    ← set.range_comp, ← coe_comp, ← Scheme.comp_val_base],
+  exact (is_immersion.range_is_locally_closed (f ≫ g)).preimage g.1.base.2
 end
 
 @[simps]
@@ -155,8 +135,6 @@ by { rw ← is_immersion.factors f, apply mono_comp }
 instance is_immersion.to_locally_of_finite_type [is_immersion f] : locally_of_finite_type f :=
 by { rw ← is_immersion.factors f, apply_instance }
 
-
-
 lemma is_immersion_stable_under_composition : 
   morphism_property.stable_under_composition @is_immersion :=
 λ _ _ _ _ _ _ _, by exactI infer_instance
@@ -194,36 +172,20 @@ lemma is_immersion_is_local_at_target :
 begin
   constructor,
   { exact is_immersion_respects_iso },
-  { introsI X Y f U H,
+  { intros X Y f U hU,
+    haveI := is_preimmersion_is_local_at_target.2 f U hU.1,
     constructor,
-    { rw morphism_restrict_val_base, exact H.1.restrict_preimage U.1 },
-    { rw [morphism_restrict_val_base, set.range_restrict_preimage],
-      exact (is_immersion.range_is_locally_closed f).preimage continuous_subtype_coe },
-    { exact λ x, ((morphism_property.surjective_respects_iso _).arrow_iso_iff
-      (morphism_restrict_stalk_map f U x)).mpr (H.3 x.1) } },
-  { intros X Y f 𝒰 H,
+    rw [morphism_restrict_val_base, set.range_restrict_preimage],
+    exact (is_immersion.range_is_locally_closed f).preimage continuous_subtype_coe },
+  { introsI X Y f 𝒰 H,
+    haveI := is_preimmersion_is_local_at_target.3 f 𝒰 infer_instance,
     constructor,
-    { apply (embedding_iff_embedding_of_supr_eq_top
-        𝒰.supr_opens_range f.1.base.2).mpr,
-      intro i,
-      have := ((is_immersion_respects_iso.arrow_iso_iff
-        (morphism_restrict_opens_range f (𝒰.map i))).mpr (H i)).1,
-      rwa [arrow.mk_hom, morphism_restrict_val_base] at this },
-    { rw is_locally_closed_iff_coe_preimage_of_supr_eq_top 𝒰.supr_opens_range,
-      intro i, 
-      replace H := (H i).2,
-      simp_rw [pullback.range_snd, (is_open_immersion.base_open $ 𝒰.map i).to_embedding
-        .is_locally_closed_iff, set.image_preimage_eq_inter_range] at H,
-      obtain ⟨s, hs, hs'⟩ := H,
-      rw embedding_subtype_coe.is_locally_closed_iff,
-      refine ⟨s, hs, _⟩,
-      rwa [set.image_preimage_eq_inter_range, @subtype.range_coe _ (set.range _)] },
-    { exact λ x, ((morphism_property.surjective_respects_iso _).arrow_iso_iff
-        (morphism_restrict_stalk_map f _ _)).mp
-        (((is_immersion_respects_iso.arrow_iso_iff (morphism_restrict_opens_range f (𝒰.map _)))
-        .mpr (H (𝒰.f $ f.1.base x))).3 ⟨x, 𝒰.covers (f.1.base x)⟩) } }
+    apply (is_locally_closed_iff_coe_preimage_of_supr_eq_top 𝒰.supr_opens_range _).mpr,
+    intro i,
+    convert ((is_immersion_respects_iso.arrow_mk_iso_iff
+      (morphism_restrict_opens_range f (𝒰.map i))).mpr (H i)).2 using 1,
+    rw [morphism_restrict_val_base, set.range_restrict_preimage] },
 end
-.
 
 lemma is_immersion_open_cover_tfae (f : X ⟶ Y) :
   tfae [is_immersion f,
@@ -237,34 +199,34 @@ lemma is_immersion_open_cover_tfae (f : X ⟶ Y) :
     ∃ {ι : Type u} (U : ι → opens Y.carrier) (hU : supr U = ⊤), (∀ i, is_immersion (f ∣_ (U i)))] :=
 is_immersion_is_local_at_target.open_cover_tfae f
 
-lemma is_immersion_open_cover_of_subset_supr (f : X ⟶ Y)
-  {ι : Type u} (U : ι → opens Y.carrier) (hU : set.range f.1.base ⊆ ((supr U : _) : set Y.carrier))
-  (h : ∀ i, is_immersion (f ∣_ U i)) : is_immersion f :=
-begin
-  let V := supr U,
-  have hV : (opens.map f.val.base).obj V = ⊤,
-  { rw [eq_top_iff], exact set.image_subset_iff.mp ((subset_of_eq set.image_univ).trans hU) },
-  suffices : is_immersion (f ∣_ V),
-  { haveI : is_iso (X.of_restrict ((opens.map f.val.base).obj V).open_embedding),
-    { rw hV,
-      apply_with (is_iso_of_reflects_iso _ Scheme.forget_to_LocallyRingedSpace) { instances := ff },
-      convert_to is_iso X.to_LocallyRingedSpace.restrict_top_iso.hom,
-      apply_instance },
-    rw [← is_immersion_respects_iso.cancel_left_is_iso
-      (X.of_restrict ((opens.map f.val.base).obj V).open_embedding), ← morphism_restrict_ι],
-    apply_instance },
-  let U' : ι → opens (Y.restrict V.open_embedding).carrier := (opens.map V.inclusion).obj ∘ U,
-  have : supr U' = ⊤,
-  { rw [eq_top_iff],
-    rintro ⟨x, hx⟩ -,
-    obtain ⟨i, hi⟩ := opens.mem_supr.mp hx,
-    exact opens.mem_supr.mpr ⟨i, hi⟩ },
-  refine ((is_immersion_open_cover_tfae (f ∣_ V)).out 0 5).mpr ⟨_, U', this, λ i, _⟩,
-  refine (is_immersion_respects_iso.arrow_iso_iff (morphism_restrict_restrict f _ _ ≪≫
-    morphism_restrict_eq f ((V.functor_map_eq_inf _).trans _))).mpr (h i),
-  rw inf_eq_left,
-  exact le_supr U i,
-end
+-- lemma is_immersion_open_cover_of_subset_supr (f : X ⟶ Y)
+--   {ι : Type u} (U : ι → opens Y.carrier) (hU : set.range f.1.base ⊆ ((supr U : _) : set Y.carrier))
+--   (h : ∀ i, is_immersion (f ∣_ U i)) : is_immersion f :=
+-- begin
+--   let V := supr U,
+--   have hV : (opens.map f.val.base).obj V = ⊤,
+--   { rw [eq_top_iff], exact set.image_subset_iff.mp ((subset_of_eq set.image_univ).trans hU) },
+--   suffices : is_immersion (f ∣_ V),
+--   { haveI : is_iso (X.of_restrict ((opens.map f.val.base).obj V).open_embedding),
+--     { rw hV,
+--       apply_with (is_iso_of_reflects_iso _ Scheme.forget_to_LocallyRingedSpace) { instances := ff },
+--       convert_to is_iso X.to_LocallyRingedSpace.restrict_top_iso.hom,
+--       apply_instance },
+--     rw [← is_immersion_respects_iso.cancel_left_is_iso
+--       (X.of_restrict ((opens.map f.val.base).obj V).open_embedding), ← morphism_restrict_ι],
+--     apply_instance },
+--   let U' : ι → opens (Y.restrict V.open_embedding).carrier := (opens.map V.inclusion).obj ∘ U,
+--   have : supr U' = ⊤,
+--   { rw [eq_top_iff],
+--     rintro ⟨x, hx⟩ -,
+--     obtain ⟨i, hi⟩ := opens.mem_supr.mp hx,
+--     exact opens.mem_supr.mpr ⟨i, hi⟩ },
+--   refine ((is_immersion_open_cover_tfae (f ∣_ V)).out 0 5).mpr ⟨_, U', this, λ i, _⟩,
+--   refine (is_immersion_respects_iso.arrow_iso_iff (morphism_restrict_restrict f _ _ ≪≫
+--     morphism_restrict_eq f ((V.functor_map_eq_inf _).trans _))).mpr (h i),
+--   rw inf_eq_left,
+--   exact le_supr U i,
+-- end
 
 lemma is_closed_immersion_pullback_diagonal_Spec {R S : CommRing}
   (f' : Scheme.Spec.obj (op S) ⟶ Scheme.Spec.obj (op R)) :
@@ -321,12 +283,6 @@ def pullback.diagonal_cover :
 def pullback.diagonal_cover_diagonal :
   opens (pullback.diagonal_obj f).carrier :=
 ⨆ i : Σ i, (𝒱 i).J, ((pullback.diagonal_cover 𝒰 𝒱).map ⟨i.1, i.2, i.2⟩).opens_range
-
--- move me
-@[simps]
-def pullback.triplet_mk {X Y Z : Scheme} (f : X ⟶ Z) (g : Y ⟶ Z) (x : X.carrier) (y : Y.carrier)
-  (h : f.1.base x = g.1.base y) : pullback.triplet f g :=
-⟨x, y, _, h, rfl⟩
 
 lemma pullback.diagonal_cover_map_eq (I) : (pullback.diagonal_cover 𝒰 𝒱).map I =
   pullback.map _ _ _ _

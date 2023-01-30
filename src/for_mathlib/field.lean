@@ -1,6 +1,6 @@
 import logic.equiv.transfer_instance
 
-lemma ring_hom.is_field {R S : Type*} [field R] [semiring S] [nontrivial S] (f : R →+* S)
+lemma ring_hom.is_field {R S : Type*} [semifield R] [semiring S] [nontrivial S] (f : R →+* S)
   (hf : function.surjective f) : is_field S :=
 begin
   constructor,
@@ -11,8 +11,15 @@ begin
     rintro rfl, apply ha, rw map_zero }
 end
 
-lemma ring_equiv.is_field {R S : Type*} [field R] [semiring S] (f : R ≃+* S) : is_field S :=
+lemma ring_equiv.is_field {R S : Type*} [semifield R] [semiring S] (f : R ≃+* S) : is_field S :=
 begin
   haveI := f.to_equiv.symm.nontrivial,
   exact f.to_ring_hom.is_field f.surjective
+end
+
+lemma ring_equiv.is_field_of_is_field {R S : Type*} [semiring R] [semiring S] (f : R ≃+* S)
+  (h : is_field R) : is_field S :=
+begin
+  letI := h.to_semifield,
+  exact f.is_field
 end

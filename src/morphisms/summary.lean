@@ -1,4 +1,5 @@
 import morphisms.valuative_criterion
+import morphisms.quasi_finite
 import for_mathlib.pullback_mono
 
 /-!
@@ -15,6 +16,8 @@ open _root_.category_theory (is_iso)
 
 open function (injective surjective bijective)
 
+open Top.presheaf (is_locally_surjective)
+
 /- QoL definitions -/
 
 universe u
@@ -27,6 +30,7 @@ local infix (name := and) `+`        := @has_inf.inf (category_theory.morphism_p
 local notation `@is_iso`             := @category_theory.is_iso Scheme _
 local notation `@mono`               := @category_theory.mono Scheme _
 local notation `is_local_at_target`  := property_is_local_at_target
+local notation `is_local_at_source`  := property_is_local_at_source
 local notation `ring_hom.surjective` := λ R S _ _ f, function.surjective f
 local notation `ring_hom.integral`   := λ R S _ _ f, by exactI ring_hom.is_integral f
 local notation `qcqs`                := @quasi_compact + @quasi_separated
@@ -60,8 +64,9 @@ example : stable_under_base_change @mono := λ _ _ _ _ _ _ _ _ H _, by exactI H.
 
 example : @is_iso                 ⇒ @mono := by show_impl
 example : @is_open_immersion      ⇒ @mono := by show_impl
-example : @is_closed_immersion    ⇒ @mono := by show_impl
+example : @is_preimmersion        ⇒ @mono := by show_impl
 example : @is_immersion           ⇒ @mono := by show_impl
+example : @is_closed_immersion    ⇒ @mono := by show_impl
 
 /-! # Surjective morphisms -/
 
@@ -93,8 +98,9 @@ example : stable_under_base_change @radicial := radicial_stable_under_base_chang
 example : @is_iso                 ⇒ @radicial := by show_impl
 example : @mono                   ⇒ @radicial := by show_impl
 example : @is_open_immersion      ⇒ @radicial := by show_impl
-example : @is_closed_immersion    ⇒ @radicial := by show_impl
+example : @is_preimmersion        ⇒ @radicial := by show_impl
 example : @is_immersion           ⇒ @radicial := by show_impl
+example : @is_closed_immersion    ⇒ @radicial := by show_impl
 
 /-! # Quasi-compact morphisms -/
 
@@ -141,8 +147,9 @@ example : @mono                   ⇒ @quasi_separated := by show_impl
 example : @radicial               ⇒ @quasi_separated := by show_impl
 example : @affine                 ⇒ @quasi_separated := by show_impl
 example : @is_open_immersion      ⇒ @quasi_separated := by show_impl
-example : @is_closed_immersion    ⇒ @quasi_separated := by show_impl
+example : @is_preimmersion        ⇒ @quasi_separated := by show_impl
 example : @is_immersion           ⇒ @quasi_separated := by show_impl
+example : @is_closed_immersion    ⇒ @quasi_separated := by show_impl
 example : @separated              ⇒ @quasi_separated := by show_impl
 example : @integral               ⇒ @quasi_separated := by show_impl
 example : @finite                 ⇒ @quasi_separated := by show_impl
@@ -190,33 +197,30 @@ example : stable_under_base_change @is_open_immersion := is_open_immersion_stabl
 
 example : @is_iso                 ⇒ @is_open_immersion := by show_impl
 
-/-! # Closed immersions -/
+/-! # Preimmersions -/
 
 /-!
 ```lean
-class is_closed_immersion (f : X ⟶ Y) : Prop :=
-(base_closed [] : closed_embedding f)
-(c_locally_surjective [] : Top.presheaf.is_locally_surjective f.1.c)
+class is_preimmersion (f : X ⟶ Y) : Prop :=
+(base_embedding [] : embedding f.1.base)
+(stalk_map_surjective [] : ∀ x, function.surjective (f.stalk_map x))
 ```
 -/
-example : is_closed_immersion f ↔ closed_embedding f ∧ ∀ x, function.surjective (f.stalk_map x)     := is_closed_immersion_iff_stalk
-example : @is_closed_immersion = target_affine_locally (affine_and ring_hom.surjective)             := is_closed_immersion_eq_affine_property
-example : @is_closed_immersion = @finite + @mono                                                    := is_closed_immersion_eq_finite_inf_mono
+example : is_local_at_target       @is_preimmersion := is_preimmersion_is_local_at_target
+example : stable_under_composition @is_preimmersion := is_preimmersion_stable_under_composition
+example : stable_under_base_change @is_preimmersion := is_preimmersion_stable_under_base_change
 
-example : is_local_at_target       @is_closed_immersion := is_closed_immersion_is_local_at_target
-example : stable_under_composition @is_closed_immersion := is_closed_immersion_stable_under_composition
-example : stable_under_base_change @is_closed_immersion := is_closed_immersion_stable_under_base_change
-
-example : @is_iso                 ⇒ @is_closed_immersion := by show_impl
+example : @is_iso                 ⇒ @is_preimmersion := by show_impl
+example : @is_open_immersion      ⇒ @is_preimmersion := by show_impl
+example : @is_closed_immersion    ⇒ @is_preimmersion := by show_impl
+example : @is_immersion           ⇒ @is_preimmersion := by show_impl
 
 /-! # Immersions -/
 
 /-!
 ```lean
-class is_immersion (f : X ⟶ Y) : Prop :=
-(base_embedding [] : embedding f)
-(range_is_locally_closed [] : is_locally_closed (set.range f))
-(stalk_map_surjective [] : ∀ x, surjective (f.stalk_map x))
+class is_immersion (f : X ⟶ Y) extends is_preimmersion f : Prop :=
+(range_is_locally_closed [] : is_locally_closed (set.range f.1.base))
 ```
 
 This is different but equivalent to the usual definition. See the example below
@@ -232,6 +236,25 @@ example : stable_under_base_change @is_immersion := is_immersion_stable_under_ba
 example : @is_iso                 ⇒ @is_immersion := by show_impl
 example : @is_open_immersion      ⇒ @is_immersion := by show_impl
 example : @is_closed_immersion    ⇒ @is_immersion := by show_impl
+
+/-! # Closed immersions -/
+
+/-!
+```lean
+class is_closed_immersion (f : X ⟶ Y) extends is_preimmersion f : Prop :=
+(range_is_closed [] : is_closed (set.range f.1.base))
+```
+-/
+
+example : is_closed_immersion f ↔ closed_embedding f.1.base ∧ is_locally_surjective f.1.c           := is_closed_immersion_iff_closed_embedding_and_locally_surjective
+example : @is_closed_immersion = target_affine_locally (affine_and ring_hom.surjective)             := is_closed_immersion_eq_affine_property
+example : @is_closed_immersion = @finite + @mono                                                    := is_closed_immersion_eq_finite_inf_mono
+
+example : is_local_at_target       @is_closed_immersion := is_closed_immersion_is_local_at_target
+example : stable_under_composition @is_closed_immersion := is_closed_immersion_stable_under_composition
+example : stable_under_base_change @is_closed_immersion := is_closed_immersion_stable_under_base_change
+
+example : @is_iso                 ⇒ @is_closed_immersion := by show_impl
 
 /-! # Separated morphisms -/
 
@@ -253,8 +276,9 @@ example : @mono                   ⇒ @separated := by show_impl
 example : @radicial               ⇒ @separated := by show_impl
 example : @affine                 ⇒ @separated := by show_impl
 example : @is_open_immersion      ⇒ @separated := by show_impl
-example : @is_closed_immersion    ⇒ @separated := by show_impl
+example : @is_preimmersion        ⇒ @separated := by show_impl
 example : @is_immersion           ⇒ @separated := by show_impl
+example : @is_closed_immersion    ⇒ @separated := by show_impl
 example : @integral               ⇒ @separated := by show_impl
 example : @finite                 ⇒ @separated := by show_impl
 example : @proper                 ⇒ @separated := by show_impl
@@ -271,6 +295,7 @@ class locally_of_finite_type (f : X ⟶ Y) : Prop :=
 -/
 example : @locally_of_finite_type = affine_locally @ring_hom.finite_type                            := locally_of_finite_type_eq
 
+example : is_local_at_source       @locally_of_finite_type := locally_of_finite_type_is_local_at_source
 example : is_local_at_target       @locally_of_finite_type := locally_of_finite_type_is_local_at_target
 example : stable_under_composition @locally_of_finite_type := locally_of_finite_type_stable_under_composition
 example : stable_under_base_change @locally_of_finite_type := locally_of_finite_type_stable_under_base_change
@@ -280,7 +305,10 @@ example : @is_open_immersion      ⇒ @locally_of_finite_type := by show_impl
 example : @is_closed_immersion    ⇒ @locally_of_finite_type := by show_impl
 example : @is_immersion           ⇒ @locally_of_finite_type := by show_impl
 example : @finite                 ⇒ @locally_of_finite_type := by show_impl
+example : @locally_quasi_finite   ⇒ @locally_of_finite_type := by show_impl
 example : @proper                 ⇒ @locally_of_finite_type := by show_impl
+
+example [locally_of_finite_type (f ≫ g)] : locally_of_finite_type f := locally_of_finite_type_of_comp f g
 
 /-! # Integral morphisms -/
 
@@ -320,6 +348,31 @@ example : stable_under_base_change @finite := finite_stable_under_base_change
 
 example : @is_iso                 ⇒ @finite := by show_impl
 example : @is_closed_immersion    ⇒ @finite := by show_impl
+
+/-! # Locally quasi-finite morphisms -/
+
+/-!
+```lean
+def Scheme.hom.quasi_finite_at (x : X.carrier) : Prop :=
+𝓝[f.1.base ⁻¹' {f.1.base x} \ {x}] x = ⊥
+
+class locally_quasi_finite extends locally_of_finite_type f : Prop :=
+(quasi_finite_at : ∀ x, f.quasi_finite_at x)
+```
+-/
+
+example : is_local_at_source       @locally_quasi_finite := locally_quasi_finite_is_local_at_source
+example : is_local_at_target       @locally_quasi_finite := locally_quasi_finite_is_local_at_target
+example : stable_under_composition @locally_quasi_finite := locally_quasi_finite_stable_under_composition
+example : stable_under_base_change @locally_quasi_finite := locally_quasi_finite_stable_under_base_change
+
+example : @is_iso                 ⇒ @locally_quasi_finite := by show_impl
+example : @is_open_immersion      ⇒ @locally_quasi_finite := by show_impl
+example : @is_immersion           ⇒ @locally_quasi_finite := by show_impl
+example : @is_closed_immersion    ⇒ @locally_quasi_finite := by show_impl
+example : @finite                 ⇒ @locally_quasi_finite := by show_impl
+
+example [locally_quasi_finite (f ≫ g)] : locally_quasi_finite f := locally_quasi_finite_of_comp f g ‹_›
 
 /-! # Universally specializing morphisms -/
 

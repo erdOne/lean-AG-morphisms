@@ -1,6 +1,8 @@
 import logic.equiv.transfer_instance
 import ring_theory.valuation.valuation_subring
 import algebraic_geometry.prime_spectrum_more
+import for_mathlib.local_ring
+import for_mathlib.ideal
 
 
 variables {K: Type*} [field K] (A : valuation_subring K)
@@ -26,19 +28,6 @@ def valuation_subring.to_local_subring (A : valuation_subring K) : local_subring
 lemma valuation_subring.to_local_subring_injective : 
   function.injective (valuation_subring.to_local_subring : _ → local_subring K) :=
 λ A B e, by { ext, change x ∈ A.to_local_subring.1 ↔ _, rw e, refl }
-
-lemma subring.is_unit_iff {K : Type*} [division_ring K] {A : subring K} (x : A) (hx : x ≠ 0) :
-  is_unit x ↔ (x : K)⁻¹ ∈ A :=
-begin
-  split,
-  { rintro ⟨⟨x, y, hxy, hyx⟩, rfl⟩,
-    convert y.2,
-    rw inv_eq_of_mul_eq_one_left,
-    exact subtype.ext_iff.mp hyx },
-  { intro h, 
-    have : (x : K) ≠ 0 := by { contrapose! hx, ext1, exact hx },
-    refine ⟨⟨x, ⟨_, h⟩, _, _⟩, rfl⟩; ext; simp [inv_mul_cancel this, mul_inv_cancel this] }
-end
 
 def maximal_local_subrings (K : Type*) [field K] : set (local_subring K) :=
 maximals (≤) (set.univ : set $ local_subring K)
@@ -85,15 +74,6 @@ begin
     rw ← hm'',
     exact hy,
     all_goals { apply_instance } }
-end
-  
-lemma _root_.ideal.map_comp {R A B : Type*} [comm_ring R] [comm_ring A] [comm_ring B]
-  (f : R →+* A) (g : A →+* B) (I : ideal R) :
-  I.map (g.comp f) = (I.map f).map g :=
-begin
-  change _ = (ideal.span _).map g,
-  rw [ideal.map_span, ← set.image_comp], 
-  refl,
 end
 
 lemma algebra.mem_ideal_map_adjoin {R S : Type*} [comm_ring R] [comm_ring S] [algebra R S]
@@ -223,21 +203,6 @@ begin
     refine is_unit_of_mul_eq_one _ ⟨_, hDE.some hD⟩ _,
     ext, injection hx.mul_coe_inv },
   exact ⟨X, le_trans (hc hB) (this ⟨B, hB⟩), λ C hC, this ⟨C, hC⟩⟩
-end
-
-
-lemma is_local_ring_hom_of_surjective {R S : Type*} [comm_ring R] [local_ring R] [comm_ring S]
-  [nontrivial S]
-  (f : R →+* S) (hf : function.surjective f) : is_local_ring_hom f :=
-begin
-  haveI := local_ring.of_surjective' _ hf,
-  have := ideal.comap_map_of_surjective f hf (local_ring.maximal_ideal R),
-  rw [sup_eq_left.mpr _] at this,
-  rw [(local_hom_tfae f).out 0 3, ← this],
-  { refine ideal.comap_mono (le_maximal_ideal _),
-    intro e, rw e at this, exact (maximal_ideal.is_maximal R).ne_top this.symm },
-  { apply le_maximal_ideal, intro e, apply @one_ne_zero S, rw ← f.map_one,
-    change (1 : R) ∈ ideal.comap f ⊥, rw e, trivial }
 end
 
 lemma bijective_range_restrict_comp_of_valuation_ring {R S K : Type*} [comm_ring R] 

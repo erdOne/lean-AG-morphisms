@@ -1,4 +1,4 @@
-import algebraic_geometry.pullback_carrier
+import morphisms.closed_immersion
 import for_mathlib.field
 import topology.local_at_target
 
@@ -131,7 +131,7 @@ instance {X : Scheme} {x y} (e : x = y) : is_iso (X.residue_field_of_eq e) :=
 def Scheme.hom.fiber (f : X ⟶ Y) (y : Y.carrier) : Scheme :=
 pullback f (Y.from_Spec_residue_field y)
 
-@[derive mono]
+@[derive is_preimmersion]
 def Scheme.hom.fiber_ι (f : X ⟶ Y) (y : Y.carrier) : f.fiber y ⟶ X :=
 pullback.fst
 
@@ -150,29 +150,21 @@ instance (f : X ⟶ Y) (y : Y.carrier)
 (f.fiber_residue_field_tensor_iso y T).CommRing_iso_to_ring_equiv.symm.is_field.to_field
 
 def Scheme.hom.fiber_carrier (f : X ⟶ Y) (y : Y.carrier) :
- (f.fiber y).carrier ≃ { x // f.1.base x = y } :=
+  (f.fiber y).carrier ≃ₜ { x : X.carrier // f.1.base x = y } :=
 begin
-  refine (pullback.carrier_equiv _ _).trans
-  { to_fun := λ h,
-      ⟨h.1.x, h.1.hx.trans (h.1.hy.symm.trans $ Scheme.from_Spec_residue_field_base _ _)⟩,
-    inv_fun := λ x, ⟨⟨x.1, show prime_spectrum (Y.residue_field y),
-      from ⊥, _, x.2, Scheme.from_Spec_residue_field_base _ _⟩, ⊥⟩,
-    left_inv := _,
-    right_inv := _ },
-  { rintro ⟨T, x⟩, rw pullback.carrier_equiv_eq,
-    dsimp,
-    haveI : unique (prime_spectrum T.residue_field_tensor) := prime_spectrum.unique,
-    refine ⟨_, subsingleton.elim _ _⟩,
-    ext1, refl, exact @subsingleton.elim (prime_spectrum _) _ _ _ },
-  { rintros x, ext1, refl }
+  refine (homeomorph.of_embedding _ (is_preimmersion.base_embedding $ f.fiber_ι y)).trans
+    (homeomorph.set_congr _),
+  ext x,
+  rw [Scheme.hom.fiber_ι, pullback.range_fst, Scheme.range_from_Spec_residue_field],
+  exact set.mem_singleton_iff
 end 
 
 @[simp]
 lemma Scheme.hom.fiber_carrier_apply (f : X ⟶ Y) (y : Y.carrier) (x) :
-  ↑(f.fiber_carrier y x) = (f.fiber_ι y).1.base x := rfl
+  (f.fiber_carrier y x : X.carrier) = (f.fiber_ι y).1.base x := rfl
 
 lemma Scheme.hom.fiber_ι_coe (f : X ⟶ Y) (y : Y.carrier) :
-  ⇑(f.fiber_ι y).1.base = coe ∘ (f.fiber_carrier y) :=
+  ⇑(f.fiber_ι y).1.base = (coe ∘ (f.fiber_carrier y) : _ → X.carrier) :=
 funext $ λ x, (f.fiber_carrier_apply y x).symm
 
 lemma Scheme.hom.range_fiber_ι (f : X ⟶ Y) (y : Y.carrier) :
@@ -183,35 +175,27 @@ begin
   ext, rw [set.mem_preimage, set.mem_singleton_iff], refl,
 end
 
-lemma is_open_map_of_restrict {α β : Type*} [topological_space α] [topological_space β]
-  (f : α → β) (h : ∀ x, ∃ U : set α, x ∈ U ∧ is_open_map (U.restrict f)) :
-  is_open_map f :=
+def Scheme.hom.Spec_residue_field_to_fiber (f : X ⟶ Y) (x : X.carrier) : 
+  Scheme.Spec.obj (op $ X.residue_field x) ⟶ f.fiber (f.1.base x) :=
+pullback.lift _ _ (f.map_residue_field_from_Spec_residue_field x).symm
+
+@[simp, reassoc]
+lemma Scheme.hom.Spec_residue_field_to_fiber_ι (f : X ⟶ Y) (x : X.carrier) : 
+  f.Spec_residue_field_to_fiber x ≫ f.fiber_ι _ = X.from_Spec_residue_field x :=
+pullback.lift_fst _ _ _
+
+@[simp, reassoc]
+lemma Scheme.hom.Spec_residue_field_to_fiber_to_residue_field (f : X ⟶ Y) (x : X.carrier) : 
+  f.Spec_residue_field_to_fiber x ≫ f.fiber_to_residue_field _ =
+    Scheme.Spec.map (f.map_residue_field x).op :=
+pullback.lift_snd _ _ _
+
+instance (f : X ⟶ Y) (x : X.carrier) : is_preimmersion (f.Spec_residue_field_to_fiber x) :=
 begin
-  intros K hK,
-  rw is_open_iff_forall_mem_open,
-  rintro _ ⟨x, hx, rfl⟩,
-  obtain ⟨U, hU, hU'⟩ := h x,
-  have := hU' _ (continuous_subtype_coe.1 _ hK),
-  refine ⟨_, _, hU' _ (continuous_subtype_coe.1 _ hK), ⟨x, hU⟩, hx, rfl⟩,
-  { rintro _ ⟨y, hy, rfl⟩, refine ⟨_, hy, rfl⟩ }, 
+  haveI H : is_preimmersion (X.from_Spec_residue_field x) := infer_instance,
+  rw ← f.Spec_residue_field_to_fiber_ι at H,
+  exact @@is_preimmersion.of_comp _ _ H
 end
-
--- lemma Scheme.hom.fiber_ι_embedding_of_affine {R S : CommRing} (f : R ⟶ S) (y) :
---   is_closed_map ((Scheme.Spec.map f.op).fiber_ι y).1.base :=
--- begin
---   delta Scheme.hom.fiber_ι,
--- end
-
--- lemma Scheme.hom.fiber_ι_embedding_of_affine {R : CommRing} (f : X ⟶ Y) (y : Y.carrier) :
---   is_open_map (f.fiber_carrier y) :=
--- begin
---   let 𝒰 : (f.fiber y).open_cover := 
---     Scheme.pullback.open_cover_of_left X.affine_cover f (Y.from_Spec_residue_field y),
---   apply is_open_map_of_restrict,
---   intro x,
---   refine ⟨set.range (𝒰.map $ 𝒰.f x).1.base, 𝒰.covers x, _⟩,
-
--- end
 
 end fiber
 

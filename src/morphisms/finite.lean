@@ -107,7 +107,7 @@ begin
 end
 
 @[priority 100]
-instance is_closed_immerison.to_finite {X Y : Scheme} (f : X ⟶ Y) [H : is_closed_immersion f] :
+instance is_closed_immersion.to_finite {X Y : Scheme} (f : X ⟶ Y) [H : is_closed_immersion f] :
   finite f :=
 by { rw is_closed_immersion_eq_finite_inf_mono at H, exact H.1 }
 

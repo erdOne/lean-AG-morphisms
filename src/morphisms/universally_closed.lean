@@ -222,15 +222,6 @@ instance universally_closed.to_quasi_compact (f : X ⟶ Y) [universally_closed f
 
 section specializing
 
--- move me
-/-- The coordinate ring of a component in the `affine_cover`. -/
-def Scheme.affine_cover_ring (X : Scheme) (i : X.affine_cover.J) : CommRing :=
-CommRing.of $ (X.local_affine i).some_spec.some
-
--- move me
-lemma Scheme.affine_cover_obj (X : Scheme) (i : X.affine_cover.J) :
-  X.affine_cover.obj i = Scheme.Spec.obj (op $ X.affine_cover_ring i) := rfl
-
 lemma image_is_closed_iff_is_stable_under_specialization_of_affine
   [compact_space X.carrier] {R : CommRing}
   (f : X ⟶ Scheme.Spec.obj (op R)) {Z : set X.carrier} 

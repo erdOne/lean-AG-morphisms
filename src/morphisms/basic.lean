@@ -399,6 +399,19 @@ lemma property_is_local_at_target.open_cover_iff
 ⟨λ H, let h := ((hP.open_cover_tfae f).out 0 2).mp H in h 𝒰,
   λ H, let h := ((hP.open_cover_tfae f).out 1 0).mp in h ⟨𝒰, H⟩⟩
 
+/--
+We say that `P : morphism_property Scheme` is local at the target if
+1. `P` respects isomorphisms.
+2. If `P` holds for `X ⟶ Y`, then `P` holds for `U ⟶ Y` for any open subscheme `U ⊆ X`.
+3. If `P` holds for `Uᵢ ⟶ Y` for an open cover `{ Uᵢ }` of `X`, then `P` holds for `X ⟶ Y`.
+-/
+structure property_is_local_at_source (P : morphism_property Scheme.{u}) : Prop :=
+(respects_iso : P.respects_iso)
+(restrict : ∀ {X Y : Scheme} (f : X ⟶ Y) (U : opens X.carrier),
+  P f → P (X.of_restrict U.open_embedding ≫ f))
+(of_open_cover : ∀ {X Y : Scheme} (f : X ⟶ Y) (𝒰 : Scheme.open_cover.{u} X),
+    (∀ i, P (𝒰.map i ≫ f)) → P f)
+
 namespace affine_target_morphism_property
 
 /-- A `P : affine_target_morphism_property` is stable under base change if `P` holds for `Y ⟶ S`

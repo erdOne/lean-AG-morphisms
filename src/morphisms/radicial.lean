@@ -119,32 +119,6 @@ begin
   apply_instance
 end
 
-instance [is_iso f] (x) : is_iso (f.map_residue_field x) :=
-begin
-  refine ⟨⟨X.residue_field_of_eq _ ≫ (inv f).map_residue_field (f.1.base x), _, _⟩⟩,
-  { rw [← Scheme.comp_val_base_apply, is_iso.hom_inv_id], refl },
-  { rw [← cancel_epi (Y.to_residue_field $ f.1.base x)],
-    simp only [Scheme.to_residue_field_map_residue_field, category.comp_id,
-      Top.presheaf.stalk_congr_hom, Scheme.to_residue_field_of_eq_assoc,
-      Scheme.to_residue_field_map_residue_field_assoc,
-      ← PresheafedSpace.stalk_map.stalk_specializes_stalk_map_assoc],
-    slice_lhs 2 3 { rw ← PresheafedSpace.stalk_map.comp },
-    rw PresheafedSpace.stalk_map.congr_hom' ((inv f).1 ≫ f.1) (𝟙 _)
-      (by injection is_iso.inv_hom_id f),
-    simp only [PresheafedSpace.stalk_map.id, category.assoc,
-      Top.presheaf.stalk_specializes_comp_assoc],
-    erw [category.id_comp, Top.presheaf.stalk_specializes_refl, category.id_comp] },
-  { rw [category.assoc, ← Scheme.hom.map_residue_field_comp, ← cancel_epi (X.to_residue_field x)],
-    simp only [category.comp_id, Top.presheaf.stalk_congr_hom, Scheme.to_residue_field_of_eq_assoc],
-    erw Scheme.to_residue_field_map_residue_field,
-    rw PresheafedSpace.stalk_map.congr_hom' ((f ≫ inv f).1) (𝟙 _)
-      (by injection is_iso.hom_inv_id f),
-    simp only [PresheafedSpace.stalk_map.id, category.assoc,
-      Top.presheaf.stalk_specializes_comp_assoc],
-    erw [category.id_comp, Top.presheaf.stalk_specializes_refl, category.id_comp] }
-end
-
-
 lemma Spec_to_eq_of_injective {K : Type*} [field K] {X : Scheme}
   {f₁ f₂ : Scheme.Spec.obj (op $ CommRing.of K) ⟶ X}
   {g} (hf₁ : f₁ ≫ g = 𝟙 _) (hf₂ : f₂ ≫ g = 𝟙 _) (hg : function.injective g.1.base) : f₁ = f₂ :=

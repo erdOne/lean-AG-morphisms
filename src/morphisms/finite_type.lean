@@ -5,6 +5,8 @@ Authors: Andrew Yang
 -/
 import morphisms.ring_hom_properties
 import ring_theory.ring_hom.finite_type
+import dimension_theory.jacobson
+import algebraic_geometry.surjective_on_stalks
 
 /-!
 # Morphisms of finite type
@@ -105,6 +107,11 @@ locally_of_finite_type_eq.symm ▸
     ring_hom.finite_type_is_local.localization_preserves 
      ring_hom.finite_type_is_local.of_localization_span).target_affine_locally_is_local
 
+lemma locally_of_finite_type_is_local_at_source :
+  property_is_local_at_source @locally_of_finite_type :=
+locally_of_finite_type_eq.symm ▸
+  ring_hom.finite_type_is_local.affine_locally_local_at_source
+
 -- move me
 lemma subalgebra.map_top {R S T : Type*} [comm_ring R] [comm_ring S] [comm_ring T]
   [algebra R S] [algebra R T] (f : S →ₐ[R] T) : (⊤ : subalgebra R S).map f = f.range := 
@@ -141,6 +148,14 @@ locally_of_finite_type_eq.symm ▸
   ring_hom.finite_type_is_local.affine_locally_stable_under_base_change
     ring_hom.finite_type_stable_under_base_change
 
+instance {X Y Z : Scheme} (f : X ⟶ Z) (g : Y ⟶ Z) [locally_of_finite_type g] : 
+  locally_of_finite_type (pullback.fst : pullback f g ⟶ _) :=
+locally_of_finite_type_stable_under_base_change.fst _ _ ‹_›
+
+instance {X Y Z : Scheme} (f : X ⟶ Z) (g : Y ⟶ Z) [locally_of_finite_type f] : 
+  locally_of_finite_type (pullback.snd : pullback f g ⟶ _) :=
+locally_of_finite_type_stable_under_base_change.snd _ _ ‹_›
+
 -- generalize me
 lemma locally_of_finite_type_Spec_iff {R S : CommRing} (f : R ⟶ S) :
   locally_of_finite_type (Scheme.Spec.map f.op) ↔ ring_hom.finite_type f :=
@@ -153,6 +168,24 @@ begin
       ring_hom.finite_type_is_local.localization_preserves,
       ring_hom.finite_type_is_local.of_localization_span,
       ring_hom.finite_type_is_local] }
+end
+
+lemma locally_of_finite_type.is_jacobson [locally_of_finite_type f] (hY : is_jacobson Y.carrier) :
+  is_jacobson X.carrier :=
+begin
+  let 𝒰 : X.open_cover := (Y.affine_cover.pullback_cover f).bind (λ _, Scheme.affine_cover _),
+  rw is_jacobson_iff_of_supr_eq_top 𝒰.supr_opens_range,
+  intro i,
+  refine is_jacobson.of_closed_embedding _ (homeomorph.of_embedding (𝒰.map i).1.base
+    (is_open_immersion.base_open _).to_embedding).symm.closed_embedding,
+  let g : 𝒰.obj i ⟶ _ := (Scheme.affine_cover _).map _ ≫ pullback.snd,
+  refine prime_spectrum.is_jacobson_iff_is_jacobson.mp _,
+  apply_with
+    (@@is_jacobson_of_ring_hom_finite_type _ _ (Scheme.Spec.preimage g).unop) { instances := ff },
+  { refine prime_spectrum.is_jacobson_iff_is_jacobson.mpr _,
+    exact is_jacobson.of_open_embedding hY (is_open_immersion.base_open $ Y.affine_cover.map _) },
+  rw [← locally_of_finite_type_Spec_iff, quiver.hom.op_unop, Scheme.Spec.image_preimage],
+  apply_instance
 end
 
 end algebraic_geometry

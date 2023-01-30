@@ -578,9 +578,20 @@ begin
 end
 
 lemma affine_locally_stable_under_base_change (h : ring_hom.stable_under_base_change @P) :
-  morphism_property.stable_under_base_change (affine_locally @P) :=
+  (affine_locally @P).stable_under_base_change :=
 hP.is_local_source_affine_locally.stable_under_base_change
   (source_affine_locally_stable_under_base_change hP h)
+
+lemma affine_locally_local_at_source :
+  property_is_local_at_source (affine_locally @P) :=
+begin
+  constructor,
+  { exact target_affine_locally_respects_iso (source_affine_locally_respects_iso hP.respects_iso) },
+  { intros, apply affine_locally_stable_under_composition hP,
+    { apply affine_locally_of_is_open_immersion hP },
+    { assumption } },
+  { intros, rwa source_open_cover_iff hP f 𝒰 }
+end
 
 end ring_hom.property_is_local
 

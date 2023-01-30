@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Andrew Yang
 -/
 import morphisms.ring_hom_properties
+import morphisms.preimmersion
 import morphisms.monomorphism
 import topology.sheaves.locally_surjective
 import topology.local_at_target
@@ -32,10 +33,8 @@ namespace algebraic_geometry
 variables {X Y Z : Scheme.{u}} (f : X ⟶ Y) (g : Y ⟶ Z)
 
 /-- A morphism is a `is_closed_immersion` if the preimages of affine open sets are affine. -/
-@[mk_iff]
-class is_closed_immersion (f : X ⟶ Y) : Prop :=
-(base_closed [] : closed_embedding f.1.base)
-(c_locally_surjective [] : Top.presheaf.is_locally_surjective f.1.c)
+class is_closed_immersion (f : X ⟶ Y) extends is_preimmersion f : Prop :=
+(range_is_closed [] : is_closed (set.range f.1.base))
 
 lemma _root_.Top.presheaf.stalk_pushforward_subsingleton
   {X Y : Top} (F : X.presheaf CommRing) (hF : F.is_sheaf) (f : X ⟶ Y) (x : Y)
@@ -58,10 +57,20 @@ begin
   rw [subsingleton.elim t 0, map_zero]
 end
 
-lemma is_closed_immersion_iff_stalk {f : X ⟶ Y} :
+lemma is_closed_immersion_iff_is_preimmersion {f : X ⟶ Y} :
+  is_closed_immersion f ↔ is_preimmersion f ∧ is_closed (set.range f.1.base) :=
+⟨λ H, ⟨H.1, H.2⟩, λ H, @@is_closed_immersion.mk H.1 H.2⟩
+
+lemma is_closed_immersion_iff {f : X ⟶ Y} :
   is_closed_immersion f ↔
     closed_embedding f.1.base ∧ ∀ x, function.surjective (PresheafedSpace.stalk_map f.1 x) :=
+⟨λ H, ⟨⟨H.1.1, H.2⟩, H.1.2⟩, λ H, @@is_closed_immersion.mk ⟨H.1.1, H.2⟩ H.1.2⟩
+
+lemma is_closed_immersion_iff_closed_embedding_and_locally_surjective {f : X ⟶ Y} :
+  is_closed_immersion f ↔
+    closed_embedding f.1.base ∧ Top.presheaf.is_locally_surjective f.1.c :=
 begin
+  symmetry,
   rw [is_closed_immersion_iff, Top.presheaf.locally_surjective_iff_surjective_on_stalks],
   delta PresheafedSpace.stalk_map,
   split,
@@ -86,11 +95,19 @@ end
 
 lemma is_closed_immersion.stalk_map_surjective [is_closed_immersion f] (x : X.carrier) :
   function.surjective (PresheafedSpace.stalk_map f.1 x) :=
-(is_closed_immersion_iff_stalk.mp infer_instance).2 x
+is_preimmersion.stalk_map_surjective f x
+
+lemma is_closed_immersion.base_closed [is_closed_immersion f] :
+  closed_embedding f.1.base :=
+(is_closed_immersion_iff.mp infer_instance).1
+
+lemma is_closed_immersion.c_locally_surjective [is_closed_immersion f] :
+  Top.presheaf.is_locally_surjective f.1.c :=
+(is_closed_immersion_iff_closed_embedding_and_locally_surjective.mp infer_instance).2
 
 instance is_closed_immersion_of_is_iso (f : X ⟶ Y) [is_iso f] : is_closed_immersion f :=
 begin
-  refine is_closed_immersion_iff_stalk.mpr ⟨(Top.homeo_of_iso $ as_iso f.1.base).closed_embedding, _⟩,
+  refine is_closed_immersion_iff.mpr ⟨(Top.homeo_of_iso $ as_iso f.1.base).closed_embedding, _⟩,
   intro x,
   exact ((forget _).map_iso (as_iso $ PresheafedSpace.stalk_map f.val x)).to_equiv.surjective,
 end
@@ -99,7 +116,7 @@ lemma is_closed_immersion_stable_under_composition :
   morphism_property.stable_under_composition @is_closed_immersion :=
 begin
   introsI X Y Z f g h₁ h₂,
-  rw is_closed_immersion_iff_stalk at h₁ h₂ ⊢,
+  rw is_closed_immersion_iff at h₁ h₂ ⊢,
   refine ⟨h₂.1.comp h₁.1, λ x, _⟩,
   erw PresheafedSpace.stalk_map.comp,
   exact (h₁.2 x).comp (h₂.2 $ f.1 x)
@@ -116,25 +133,19 @@ lemma is_closed_immersion_is_local_at_target : property_is_local_at_target @is_c
 begin
   constructor,
   { exact is_closed_immersion_respects_iso },
-  { simp_rw is_closed_immersion_iff_stalk,
-    rintros X Y f U ⟨h₁, h₂⟩,
-    split,
-    { rw morphism_restrict_val_base, exact h₁.restrict_preimage U.1 },
-    { exact λ x, ((morphism_property.surjective_respects_iso _).arrow_iso_iff
-      (morphism_restrict_stalk_map f U x)).mpr (h₂ x.1) } },
-  { intros X Y f 𝒰 H,
-    rw is_closed_immersion_iff_stalk,
-    split,
-    { apply (closed_embedding_iff_closed_embedding_of_supr_eq_top
-        𝒰.supr_opens_range f.1.base.2).mpr,
-      intro i,
-      have := ((is_closed_immersion_respects_iso.arrow_iso_iff
-        (morphism_restrict_opens_range f (𝒰.map i))).mpr (H i)).1,
-      rwa [arrow.mk_hom, morphism_restrict_val_base] at this },
-    { exact λ x, ((morphism_property.surjective_respects_iso _).arrow_iso_iff
-        (morphism_restrict_stalk_map f _ _)).mp ((is_closed_immersion_iff_stalk.mp $
-        (is_closed_immersion_respects_iso.arrow_iso_iff (morphism_restrict_opens_range f (𝒰.map _)))
-        .mpr (H (𝒰.f $ f.1.base x))).2 ⟨x, 𝒰.covers (f.1.base x)⟩) } }
+  { intros X Y f U hU,
+    haveI := is_preimmersion_is_local_at_target.2 f U hU.1,
+    constructor,
+    rw morphism_restrict_val_base,
+    exact ((is_closed_immersion.base_closed f).restrict_preimage U.1).2 },
+  { introsI X Y f 𝒰 H,
+    haveI := is_preimmersion_is_local_at_target.3 f 𝒰 infer_instance,
+    constructor,
+    apply (is_closed_iff_coe_preimage_of_supr_eq_top 𝒰.supr_opens_range _).mpr,
+    intro i,
+    convert ((is_closed_immersion_respects_iso.arrow_mk_iso_iff
+      (morphism_restrict_opens_range f (𝒰.map i))).mpr (H i)).2 using 1,
+    rw [morphism_restrict_val_base, set.range_restrict_preimage] },
 end
 
 lemma is_affine_of_closed_embedding {X Y : Scheme} (f : X ⟶ Y) [is_affine Y]
@@ -191,7 +202,7 @@ begin
   rw [← is_closed_immersion_is_local_at_target.target_affine_locally_eq, affine_eq_affine_property],
   refine target_affine_locally_mono _,
   introsI X Y f H hf,
-  exact is_affine_of_closed_embedding f hf.1,
+  exact is_affine_of_closed_embedding f (is_closed_immersion.base_closed f),
 end
 
 instance is_closed_immersion.to_affine [H : is_closed_immersion f] : affine f :=
@@ -276,6 +287,7 @@ begin
   intros R S ϕ,
   refine ⟨λ h, by exactI surjective_of_is_closed_immersion ϕ, _⟩,
   { introI h,
+    rw is_closed_immersion_iff_closed_embedding_and_locally_surjective,
     refine ⟨prime_spectrum.closed_embedding_comap_of_surjective _ _ h,
       (Top.presheaf.locally_surjective_iff_surjective_on_stalks _).mpr _⟩,
     rintro (x : prime_spectrum R),
@@ -404,6 +416,19 @@ is_closed_immersion_stable_under_base_change.fst f g infer_instance
 instance (f : X ⟶ Z) (g : Y ⟶ Z) [is_closed_immersion f] :
   is_closed_immersion (pullback.snd : pullback f g ⟶ Y) :=
 is_closed_immersion_stable_under_base_change.snd f g infer_instance
+
+instance (x) : is_closed_immersion
+  (Scheme.Spec.map (CommRing.of_hom (local_ring.residue $ X.presheaf.stalk x)).op) :=
+begin
+  rw is_closed_immersion_Spec_iff,
+  exact ideal.quotient.mk_surjective
+end
+
+instance (x) : is_preimmersion (X.from_Spec_residue_field x) :=
+begin
+  delta Scheme.from_Spec_residue_field,
+  apply_instance
+end
 
 end algebraic_geometry
 

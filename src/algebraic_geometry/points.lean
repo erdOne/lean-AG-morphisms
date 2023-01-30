@@ -570,6 +570,20 @@ begin
   rw [Scheme.residue_field_of_eq_refl, category.id_comp],
 end
 
+lemma Scheme.hom.map_residue_field_eq {X Y : Scheme} (f : X ⟶ Y) (x) : 
+  f.map_residue_field x = local_ring.residue_field.map (PresheafedSpace.stalk_map f.1 x) :=
+begin
+  ext, refl,
+end
+
+instance {X Y : Scheme} (f : X ⟶ Y) [is_open_immersion f] (x) : 
+  is_iso (f.map_residue_field x) :=
+begin
+  rw [CommRing.is_iso_iff_bijective, Scheme.hom.map_residue_field_eq],
+  exact (local_ring.residue_field.map_equiv
+    (as_iso $ PresheafedSpace.stalk_map f.1 x).CommRing_iso_to_ring_equiv).bijective
+end
+
 lemma Scheme.from_Spec_residue_field_base (x : X.carrier) (s) :
   (X.from_Spec_residue_field x).1.base s = x :=
 begin
